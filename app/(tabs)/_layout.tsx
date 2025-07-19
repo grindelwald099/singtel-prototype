@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Chrome as Home, ChartBar as BarChart3, CreditCard, User, ShoppingBag } from 'lucide-react-native';
+import { Chrome as Home, ChartBar as BarChart3, CreditCard, User, ShoppingBag, Gift } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
@@ -54,6 +54,15 @@ export default function TabLayout() {
           title: 'Shop',
           tabBarIcon: ({ size, color }) => (
             <ShoppingBag size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="loyalty"
+        options={{
+          title: 'Loyalty',
+          tabBarIcon: ({ size, color }) => (
+            <Gift size={size} color={color} />
           ),
         }}
       />
