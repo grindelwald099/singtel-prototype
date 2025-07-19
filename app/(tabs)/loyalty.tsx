@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Image, FlatList, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gift, Star, Trophy, Crown, Zap, Tag, ShoppingBag, Clock, TrendingUp, Award, Coins, Users, Calendar, Target, Share2, CheckCircle } from 'lucide-react-native';
+import { Gift, Star, Trophy, Crown, Zap, Tag, ShoppingBag, Clock, TrendingUp, Award, Coins, Users, Calendar, Target, Share2, CircleCheck as CheckCircle } from 'lucide-react-native';
 import { createClient } from '@supabase/supabase-js';
 
 const { width } = Dimensions.get('window');
