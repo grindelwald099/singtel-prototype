@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Image, FlatList, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gift, Star, Trophy, Crown, Zap, Tag, ShoppingBag, Clock, TrendingUp, Award, Coins, Users, Calendar, Target, Share2, CircleCheck as CheckCircle } from 'lucide-react-native';
+import { Gift, Star, Trophy, Crown, Zap, Tag, ShoppingBag, Clock, TrendingUp, Award, Coins, Users, Calendar, Target, Share2, CircleCheck as CheckCircle, Sparkles, Plus, CreditCard, Gem, Flame, Rocket } from 'lucide-react-native';
 import { createClient } from '@supabase/supabase-js';
 
 const { width } = Dimensions.get('window');
@@ -20,6 +20,8 @@ interface UserTier {
   bgColor: string;
   icon: any;
   benefits: string[];
+  isPremium?: boolean;
+  monthlyFee?: number;
 }
 
 interface Voucher {
@@ -31,6 +33,7 @@ interface Voucher {
   expiryDate: string;
   category: string;
   image: string;
+  isExclusive?: boolean;
 }
 
 interface PersonalizedDiscount {
@@ -45,10 +48,19 @@ interface PersonalizedDiscount {
   reason: string;
 }
 
+interface PointsBooster {
+  id: string;
+  points: number;
+  price: number;
+  bonus: number;
+  popular?: boolean;
+}
+
 export default function LoyaltyScreen() {
   const [activeTab, setActiveTab] = useState('overview');
   const [userPoints, setUserPoints] = useState(2450);
   const [userTier, setUserTier] = useState('Gold');
+  const [isPremiumMember, setIsPremiumMember] = useState(false);
   const [loading, setLoading] = useState(false);
   const [personalizedDiscounts, setPersonalizedDiscounts] = useState<PersonalizedDiscount[]>([]);
   const [user, setUser] = useState<any>(null);
@@ -82,6 +94,34 @@ export default function LoyaltyScreen() {
     image: 'https://images.pexels.com/photos/3394650/pexels-photo-3394650.jpeg?auto=compress&cs=tinysrgb&w=400'
   };
 
+  const pointsBoosters: PointsBooster[] = [
+    {
+      id: 'starter',
+      points: 500,
+      price: 5,
+      bonus: 0,
+    },
+    {
+      id: 'popular',
+      points: 1200,
+      price: 10,
+      bonus: 200,
+      popular: true,
+    },
+    {
+      id: 'premium',
+      points: 2500,
+      price: 20,
+      bonus: 500,
+    },
+    {
+      id: 'mega',
+      points: 5500,
+      price: 40,
+      bonus: 1500,
+    }
+  ];
+
   const tiers: UserTier[] = [
     {
       name: 'Bronze',
@@ -111,13 +151,24 @@ export default function LoyaltyScreen() {
       benefits: ['1.5x points on purchases', 'VIP customer support', 'Early access to sales', 'Free shipping on all orders', 'Birthday bonus points']
     },
     {
+      name: 'Gold+',
+      minPoints: 2500,
+      multiplier: 2.0,
+      color: '#FF6B35',
+      bgColor: '#FFF3E0',
+      icon: Gem,
+      isPremium: true,
+      monthlyFee: 9.99,
+      benefits: ['2x points on purchases', 'Exclusive premium vouchers', 'Concierge services', 'Priority everything', 'Monthly bonus points', 'VIP events access']
+    },
+    {
       name: 'Platinum',
       minPoints: 5000,
-      multiplier: 2.0,
+      multiplier: 2.5,
       color: '#E5E4E2',
       bgColor: '#FAFAFA',
       icon: Crown,
-      benefits: ['2x points on purchases', 'Dedicated account manager', 'Exclusive events access', 'Free premium shipping', 'Quarterly bonus rewards']
+      benefits: ['2.5x points on purchases', 'Dedicated account manager', 'Exclusive events access', 'Free premium shipping', 'Quarterly bonus rewards']
     }
   ];
 
@@ -144,13 +195,14 @@ export default function LoyaltyScreen() {
     },
     {
       id: '3',
-      title: 'Free Broadband Installation',
-      description: 'Waive installation fees for new broadband connections',
-      pointsCost: 1200,
-      value: '$80',
+      title: 'Premium Concierge Service',
+      description: 'Personal shopping assistant for tech purchases',
+      pointsCost: 2000,
+      value: '$100',
       expiryDate: '2025-04-15',
-      category: 'Broadband',
-      image: 'https://images.pexels.com/photos/4219654/pexels-photo-4219654.jpeg?auto=compress&cs=tinysrgb&w=400'
+      category: 'Premium',
+      image: 'https://images.pexels.com/photos/4219654/pexels-photo-4219654.jpeg?auto=compress&cs=tinysrgb&w=400',
+      isExclusive: true
     },
     {
       id: '4',
@@ -296,14 +348,21 @@ export default function LoyaltyScreen() {
   };
 
   const getCurrentTier = () => {
+    if (isPremiumMember) {
+      return tiers.find(tier => tier.name === 'Gold+') || tiers[2];
+    }
     return tiers.find(tier => 
-      userPoints >= tier.minPoints && 
+      !tier.isPremium && userPoints >= tier.minPoints && 
       (tiers.indexOf(tier) === tiers.length - 1 || userPoints < tiers[tiers.indexOf(tier) + 1].minPoints)
     ) || tiers[0];
   };
 
   const getNextTier = () => {
-    const currentTierIndex = tiers.findIndex(tier => tier.name === getCurrentTier().name);
+    const currentTier = getCurrentTier();
+    if (currentTier.name === 'Gold' && !isPremiumMember) {
+      return tiers.find(tier => tier.name === 'Platinum');
+    }
+    const currentTierIndex = tiers.findIndex(tier => tier.name === currentTier.name);
     return currentTierIndex < tiers.length - 1 ? tiers[currentTierIndex + 1] : null;
   };
 
@@ -319,8 +378,9 @@ export default function LoyaltyScreen() {
   const claimDailyReward = () => {
     if (!hasClaimedToday) {
       const baseReward = 50;
-      const streakBonus = Math.min(dailyLoginStreak * 5, 50); // Max 50 bonus points
-      const totalReward = baseReward + streakBonus;
+      const streakBonus = Math.min(dailyLoginStreak * 5, 50);
+      const premiumMultiplier = isPremiumMember ? 2 : 1;
+      const totalReward = (baseReward + streakBonus) * premiumMultiplier;
       
       setUserPoints(prev => prev + totalReward);
       setHasClaimedToday(true);
@@ -329,8 +389,18 @@ export default function LoyaltyScreen() {
   };
 
   const shareReferralCode = () => {
-    // In a real app, this would open the share dialog
     console.log('Sharing referral code:', referralCode);
+  };
+
+  const purchasePointsBooster = (booster: PointsBooster) => {
+    console.log('Purchasing points booster:', booster);
+    // In a real app, this would integrate with payment processing
+    setUserPoints(prev => prev + booster.points + booster.bonus);
+  };
+
+  const upgradeToPremium = () => {
+    console.log('Upgrading to Gold+ Premium');
+    setIsPremiumMember(true);
   };
 
   const renderOverview = () => {
@@ -341,26 +411,102 @@ export default function LoyaltyScreen() {
 
     return (
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Premium Upgrade Banner */}
+        {!isPremiumMember && (
+          <TouchableOpacity style={styles.premiumBanner} onPress={upgradeToPremium}>
+            <LinearGradient
+              colors={['#FF6B35', '#E60012']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.premiumGradient}
+            >
+              <View style={styles.premiumContent}>
+                <View style={styles.premiumLeft}>
+                  <View style={styles.premiumIconContainer}>
+                    <Gem size={24} color="white" />
+                    <Sparkles size={16} color="#FFD700" style={styles.sparkleIcon} />
+                  </View>
+                  <View style={styles.premiumText}>
+                    <Text style={styles.premiumTitle}>Upgrade to Gold+</Text>
+                    <Text style={styles.premiumSubtitle}>2x points • Exclusive perks • $9.99/month</Text>
+                  </View>
+                </View>
+                <View style={styles.premiumButton}>
+                  <Text style={styles.premiumButtonText}>Upgrade</Text>
+                </View>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
+
         {/* Points Balance Card */}
         <View style={styles.card}>
           <LinearGradient
-            colors={[currentTier.color, currentTier.color + '80']}
+            colors={isPremiumMember ? ['#FF6B35', '#E60012'] : [currentTier.color, currentTier.color + '80']}
             style={styles.pointsGradient}
           >
             <View style={styles.pointsHeader}>
               <View style={styles.pointsInfo}>
                 <Text style={styles.pointsLabel}>Your Points Balance</Text>
                 <View style={styles.pointsAmount}>
-                  <Coins size={24} color="white" />
+                  <Coins size={28} color="white" />
                   <Text style={styles.pointsValue}>{userPoints.toLocaleString()}</Text>
+                  {isPremiumMember && <Gem size={20} color="#FFD700" style={styles.premiumGem} />}
                 </View>
               </View>
-              <View style={styles.tierBadge}>
-                <currentTier.icon size={20} color={currentTier.color} />
-                <Text style={[styles.tierText, { color: currentTier.color }]}>{currentTier.name}</Text>
+              <View style={[styles.tierBadge, isPremiumMember && styles.premiumTierBadge]}>
+                <currentTier.icon size={20} color="white" />
+                <Text style={styles.tierText}>{currentTier.name}</Text>
+                {isPremiumMember && <Sparkles size={14} color="#FFD700" />}
               </View>
             </View>
           </LinearGradient>
+        </View>
+
+        {/* Points Boosters */}
+        <View style={styles.card}>
+          <View style={styles.boosterHeader}>
+            <Rocket size={20} color="#E60012" />
+            <Text style={styles.boosterTitle}>🚀 Points Boosters</Text>
+            <Text style={styles.boosterSubtitle}>Get points instantly!</Text>
+          </View>
+          
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.boosterScroll}>
+            {pointsBoosters.map((booster) => (
+              <TouchableOpacity 
+                key={booster.id} 
+                style={[styles.boosterCard, booster.popular && styles.popularBooster]}
+                onPress={() => purchasePointsBooster(booster)}
+              >
+                {booster.popular && (
+                  <View style={styles.popularBadge}>
+                    <Flame size={12} color="white" />
+                    <Text style={styles.popularText}>POPULAR</Text>
+                  </View>
+                )}
+                
+                <View style={styles.boosterContent}>
+                  <Text style={styles.boosterPoints}>{booster.points.toLocaleString()}</Text>
+                  <Text style={styles.boosterPointsLabel}>Points</Text>
+                  
+                  {booster.bonus > 0 && (
+                    <View style={styles.bonusContainer}>
+                      <Text style={styles.bonusText}>+{booster.bonus} Bonus!</Text>
+                    </View>
+                  )}
+                  
+                  <View style={styles.boosterPrice}>
+                    <Text style={styles.boosterPriceText}>S${booster.price}</Text>
+                  </View>
+                  
+                  <View style={styles.boosterButton}>
+                    <CreditCard size={14} color="white" />
+                    <Text style={styles.boosterButtonText}>Buy Now</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
         {/* Tier Progress */}
@@ -385,7 +531,7 @@ export default function LoyaltyScreen() {
         <View style={styles.card}>
           <View style={styles.goalHeader}>
             <Target size={20} color="#E60012" />
-            <Text style={styles.goalTitle}>Featured Reward</Text>
+            <Text style={styles.goalTitle}>🎯 Featured Reward</Text>
           </View>
           
           <View style={styles.goalContent}>
@@ -418,7 +564,7 @@ export default function LoyaltyScreen() {
 
         {/* Quick Actions */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <Text style={styles.sectionTitle}>⚡ Quick Actions</Text>
           <View style={styles.quickActions}>
             <TouchableOpacity style={styles.quickAction} onPress={() => setActiveTab('vouchers')}>
               <Gift size={24} color="#E60012" />
@@ -437,7 +583,7 @@ export default function LoyaltyScreen() {
 
         {/* Earn More Points */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Earn More Points</Text>
+          <Text style={styles.sectionTitle}>💰 Earn More Points</Text>
           
           {/* Daily Login Reward */}
           <View style={styles.earnSection}>
@@ -449,12 +595,13 @@ export default function LoyaltyScreen() {
                 <Text style={styles.earnTitle}>Daily Login Reward</Text>
                 <Text style={styles.earnDescription}>
                   {hasClaimedToday 
-                    ? `Claimed today! Come back tomorrow for ${50 + Math.min((dailyLoginStreak + 1) * 5, 50)} points`
-                    : `Earn ${50 + Math.min(dailyLoginStreak * 5, 50)} points (${dailyLoginStreak} day streak)`
+                    ? `Claimed today! Come back tomorrow for ${(50 + Math.min((dailyLoginStreak + 1) * 5, 50)) * (isPremiumMember ? 2 : 1)} points`
+                    : `Earn ${(50 + Math.min(dailyLoginStreak * 5, 50)) * (isPremiumMember ? 2 : 1)} points (${dailyLoginStreak} day streak)`
                   }
                 </Text>
                 <View style={styles.streakContainer}>
                   <Text style={styles.streakText}>🔥 {dailyLoginStreak} day streak</Text>
+                  {isPremiumMember && <Text style={styles.premiumMultiplier}>💎 2x Premium Bonus</Text>}
                 </View>
               </View>
               <TouchableOpacity 
@@ -478,7 +625,7 @@ export default function LoyaltyScreen() {
               <View style={styles.earnContent}>
                 <Text style={styles.earnTitle}>Refer Friends</Text>
                 <Text style={styles.earnDescription}>
-                  Earn 500 points for each friend who signs up with your code
+                  Earn {isPremiumMember ? '1000' : '500'} points for each friend who signs up with your code
                 </Text>
                 <View style={styles.referralStats}>
                   <Text style={styles.referralCode}>Your code: {referralCode}</Text>
@@ -495,7 +642,7 @@ export default function LoyaltyScreen() {
 
         {/* Recent Activity */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Recent Points Activity</Text>
+          <Text style={styles.sectionTitle}>📊 Recent Points Activity</Text>
           <View style={styles.activityList}>
             <View style={styles.activityItem}>
               <View style={styles.activityIcon}>
@@ -505,7 +652,7 @@ export default function LoyaltyScreen() {
                 <Text style={styles.activityTitle}>Purchase Reward</Text>
                 <Text style={styles.activityDate}>Today, 2:30 PM</Text>
               </View>
-              <Text style={styles.activityPoints}>+150 pts</Text>
+              <Text style={styles.activityPoints}>+{isPremiumMember ? '300' : '150'} pts</Text>
             </View>
             <View style={styles.activityItem}>
               <View style={styles.activityIcon}>
@@ -522,10 +669,10 @@ export default function LoyaltyScreen() {
                 <Star size={16} color="#FFD700" />
               </View>
               <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>Tier Bonus</Text>
+                <Text style={styles.activityTitle}>Daily Login Bonus</Text>
                 <Text style={styles.activityDate}>3 days ago</Text>
               </View>
-              <Text style={styles.activityPoints}>+200 pts</Text>
+              <Text style={styles.activityPoints}>+{isPremiumMember ? '200' : '100'} pts</Text>
             </View>
           </View>
         </View>
@@ -536,12 +683,19 @@ export default function LoyaltyScreen() {
   const renderVouchers = () => (
     <ScrollView showsVerticalScrollIndicator={false}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Available Vouchers</Text>
+        <Text style={styles.sectionTitle}>🎁 Available Vouchers</Text>
         <Text style={styles.sectionSubtitle}>Redeem your points for exclusive rewards</Text>
       </View>
 
       {vouchers.map((voucher) => (
-        <View key={voucher.id} style={styles.voucherCard}>
+        <View key={voucher.id} style={[styles.voucherCard, voucher.isExclusive && styles.exclusiveVoucher]}>
+          {voucher.isExclusive && (
+            <View style={styles.exclusiveBadge}>
+              <Gem size={12} color="white" />
+              <Text style={styles.exclusiveText}>PREMIUM EXCLUSIVE</Text>
+            </View>
+          )}
+          
           <Image source={{ uri: voucher.image }} style={styles.voucherImage} />
           <View style={styles.voucherContent}>
             <View style={styles.voucherHeader}>
@@ -559,9 +713,10 @@ export default function LoyaltyScreen() {
               <TouchableOpacity 
                 style={[
                   styles.redeemButton,
-                  userPoints < voucher.pointsCost && styles.redeemButtonDisabled
+                  userPoints < voucher.pointsCost && styles.redeemButtonDisabled,
+                  voucher.isExclusive && styles.exclusiveRedeemButton
                 ]}
-                disabled={userPoints < voucher.pointsCost}
+                disabled={userPoints < voucher.pointsCost || (voucher.isExclusive && !isPremiumMember)}
               >
                 <Coins size={16} color="white" />
                 <Text style={styles.redeemButtonText}>{voucher.pointsCost} pts</Text>
@@ -576,8 +731,8 @@ export default function LoyaltyScreen() {
   const renderDiscounts = () => (
     <ScrollView showsVerticalScrollIndicator={false}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>🤖 Accessory Discounts</Text>
-        <Text style={styles.sectionSubtitle}>AI-curated accessory deals based on your interests</Text>
+        <Text style={styles.sectionTitle}>🤖 Smart Accessory Deals</Text>
+        <Text style={styles.sectionSubtitle}>AI-curated accessory discounts based on your interests</Text>
       </View>
 
       {loading ? (
@@ -634,28 +789,42 @@ export default function LoyaltyScreen() {
   const renderTiers = () => (
     <ScrollView showsVerticalScrollIndicator={false}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Loyalty Tiers</Text>
+        <Text style={styles.sectionTitle}>🏆 Loyalty Tiers</Text>
         <Text style={styles.sectionSubtitle}>Unlock better rewards as you earn more points</Text>
       </View>
 
       {tiers.map((tier, index) => {
         const isCurrentTier = tier.name === getCurrentTier().name;
-        const isUnlocked = userPoints >= tier.minPoints;
+        const isUnlocked = userPoints >= tier.minPoints || (tier.isPremium && isPremiumMember);
         
         return (
           <View key={tier.name} style={[
             styles.tierCard,
             isCurrentTier && styles.currentTierCard,
+            tier.isPremium && styles.premiumTierCard,
             { borderColor: tier.color }
           ]}>
             <View style={styles.tierHeader}>
               <View style={[styles.tierIconContainer, { backgroundColor: tier.bgColor }]}>
                 <tier.icon size={24} color={tier.color} />
+                {tier.isPremium && <Sparkles size={16} color="#FFD700" style={styles.tierSparkle} />}
               </View>
               <View style={styles.tierInfo}>
-                <Text style={[styles.tierName, { color: tier.color }]}>{tier.name}</Text>
+                <View style={styles.tierNameContainer}>
+                  <Text style={[styles.tierName, { color: tier.color }]}>{tier.name}</Text>
+                  {tier.isPremium && (
+                    <View style={styles.premiumTierBadge}>
+                      <Text style={styles.premiumTierText}>PREMIUM</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={styles.tierRequirement}>
-                  {tier.minPoints === 0 ? 'Starting tier' : `${tier.minPoints}+ points`}
+                  {tier.isPremium 
+                    ? `$${tier.monthlyFee}/month subscription`
+                    : tier.minPoints === 0 
+                      ? 'Starting tier' 
+                      : `${tier.minPoints}+ points`
+                  }
                 </Text>
               </View>
               <View style={styles.tierMultiplier}>
@@ -665,7 +834,7 @@ export default function LoyaltyScreen() {
             </View>
 
             {isCurrentTier && (
-              <View style={styles.currentTierBadge}>
+              <View style={[styles.currentTierBadge, tier.isPremium && styles.premiumCurrentBadge]}>
                 <Text style={styles.currentTierText}>CURRENT TIER</Text>
               </View>
             )}
@@ -679,7 +848,14 @@ export default function LoyaltyScreen() {
               ))}
             </View>
 
-            {!isUnlocked && (
+            {tier.isPremium && !isPremiumMember && (
+              <TouchableOpacity style={styles.upgradePremiumButton} onPress={upgradeToPremium}>
+                <Gem size={16} color="white" />
+                <Text style={styles.upgradePremiumText}>Upgrade to Premium</Text>
+              </TouchableOpacity>
+            )}
+
+            {!isUnlocked && !tier.isPremium && (
               <View style={styles.lockedOverlay}>
                 <Text style={styles.lockedText}>
                   {tier.minPoints - userPoints} points to unlock
@@ -703,7 +879,15 @@ export default function LoyaltyScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Loyalty Points</Text>
+        <View style={styles.headerLeft}>
+          <Text style={styles.headerTitle}>💎 Loyalty Points</Text>
+          {isPremiumMember && (
+            <View style={styles.premiumHeaderBadge}>
+              <Gem size={12} color="#FFD700" />
+              <Text style={styles.premiumHeaderText}>PREMIUM</Text>
+            </View>
+          )}
+        </View>
         <TouchableOpacity style={styles.historyButton}>
           <Clock size={20} color="#666" />
         </TouchableOpacity>
@@ -753,10 +937,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 20,
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
+  },
+  premiumHeaderBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF6B35',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 10,
+  },
+  premiumHeaderText: {
+    fontSize: 10,
+    color: 'white',
+    fontWeight: 'bold',
+    marginLeft: 4,
   },
   historyButton: {
     width: 40,
@@ -770,6 +973,65 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+  },
+  premiumBanner: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  premiumGradient: {
+    padding: 20,
+  },
+  premiumContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  premiumLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  premiumIconContainer: {
+    position: 'relative',
+    marginRight: 15,
+  },
+  sparkleIcon: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+  },
+  premiumText: {
+    flex: 1,
+  },
+  premiumTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  premiumSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
+    marginTop: 2,
+  },
+  premiumButton: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  premiumButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   tabContainer: {
     paddingHorizontal: 20,
@@ -840,6 +1102,9 @@ const styles = StyleSheet.create({
     color: 'white',
     marginLeft: 8,
   },
+  premiumGem: {
+    marginLeft: 8,
+  },
   tierBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -848,11 +1113,116 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
   },
+  premiumTierBadge: {
+    backgroundColor: 'rgba(255,215,0,0.2)',
+  },
   tierText: {
     fontSize: 14,
     fontWeight: 'bold',
     marginLeft: 6,
     color: 'white',
+  },
+  boosterHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
+  boosterTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginLeft: 8,
+    flex: 1,
+  },
+  boosterSubtitle: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  boosterScroll: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  boosterCard: {
+    width: 140,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    marginRight: 12,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    position: 'relative',
+  },
+  popularBooster: {
+    borderColor: '#FF6B35',
+    backgroundColor: '#FFF3E0',
+  },
+  popularBadge: {
+    position: 'absolute',
+    top: -1,
+    right: 8,
+    backgroundColor: '#FF6B35',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 10,
+    zIndex: 1,
+  },
+  popularText: {
+    color: 'white',
+    fontSize: 8,
+    fontWeight: 'bold',
+    marginLeft: 2,
+  },
+  boosterContent: {
+    alignItems: 'center',
+  },
+  boosterPoints: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#E60012',
+  },
+  boosterPointsLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 8,
+  },
+  bonusContainer: {
+    backgroundColor: '#E8F5E8',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  bonusText: {
+    fontSize: 10,
+    color: '#4CAF50',
+    fontWeight: 'bold',
+  },
+  boosterPrice: {
+    marginBottom: 10,
+  },
+  boosterPriceText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  boosterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E60012',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  boosterButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 4,
   },
   progressHeader: {
     flexDirection: 'row',
@@ -918,6 +1288,177 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '600',
   },
+  goalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  goalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginLeft: 8,
+  },
+  goalContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  goalImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    marginRight: 15,
+  },
+  goalInfo: {
+    flex: 1,
+  },
+  goalItemName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  goalItemValue: {
+    fontSize: 14,
+    color: '#E60012',
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  goalProgress: {
+    marginTop: 8,
+  },
+  goalProgressText: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 6,
+  },
+  goalProgressBar: {
+    height: 6,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  goalProgressFill: {
+    height: '100%',
+    backgroundColor: '#E60012',
+    borderRadius: 3,
+  },
+  goalRedeemButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+  },
+  goalRedeemText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 4,
+  },
+  earnSection: {
+    marginBottom: 20,
+  },
+  earnItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 12,
+  },
+  earnIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  earnContent: {
+    flex: 1,
+  },
+  earnTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  earnDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  streakContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  streakText: {
+    fontSize: 12,
+    color: '#FF6B35',
+    fontWeight: '600',
+  },
+  premiumMultiplier: {
+    fontSize: 12,
+    color: '#E60012',
+    fontWeight: '600',
+  },
+  earnButton: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  earnButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  earnButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  earnButtonTextDisabled: {
+    color: '#999',
+  },
+  referralStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  referralCode: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#E60012',
+    backgroundColor: '#FFF3E0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  referralCount: {
+    fontSize: 12,
+    color: '#666',
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF6B35',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  shareButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginLeft: 4,
+  },
   activityList: {
     padding: 20,
   },
@@ -965,6 +1506,29 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     overflow: 'hidden',
+    position: 'relative',
+  },
+  exclusiveVoucher: {
+    borderWidth: 2,
+    borderColor: '#FF6B35',
+  },
+  exclusiveBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: '#FF6B35',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    zIndex: 1,
+  },
+  exclusiveText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginLeft: 4,
   },
   voucherImage: {
     width: '100%',
@@ -1032,6 +1596,9 @@ const styles = StyleSheet.create({
   },
   redeemButtonDisabled: {
     backgroundColor: '#ccc',
+  },
+  exclusiveRedeemButton: {
+    backgroundColor: '#FF6B35',
   },
   redeemButtonText: {
     color: 'white',
@@ -1180,6 +1747,9 @@ const styles = StyleSheet.create({
   currentTierCard: {
     backgroundColor: '#FFF8E1',
   },
+  premiumTierCard: {
+    backgroundColor: '#FFF3E0',
+  },
   tierHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1192,12 +1762,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    position: 'relative',
+  },
+  tierSparkle: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
   },
   tierInfo: {
     flex: 1,
   },
+  tierNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   tierName: {
     fontSize: 18,
+    fontWeight: 'bold',
+  },
+  premiumTierBadge: {
+    backgroundColor: '#FF6B35',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  premiumTierText: {
+    fontSize: 10,
+    color: 'white',
     fontWeight: 'bold',
   },
   tierRequirement: {
@@ -1226,6 +1818,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
   },
+  premiumCurrentBadge: {
+    backgroundColor: '#FF6B35',
+  },
   currentTierText: {
     fontSize: 10,
     color: 'white',
@@ -1250,6 +1845,21 @@ const styles = StyleSheet.create({
     color: '#666',
     flex: 1,
   },
+  upgradePremiumButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF6B35',
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginTop: 15,
+  },
+  upgradePremiumText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginLeft: 6,
+  },
   lockedOverlay: {
     position: 'absolute',
     top: 0,
@@ -1265,159 +1875,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     fontWeight: '600',
-  },
-  goalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  goalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginLeft: 8,
-  },
-  goalContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  goalImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
-    marginRight: 15,
-  },
-  goalInfo: {
-    flex: 1,
-  },
-  goalItemName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
-  },
-  goalItemValue: {
-    fontSize: 14,
-    color: '#E60012',
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  goalProgress: {
-    marginTop: 8,
-  },
-  goalProgressText: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 6,
-  },
-  goalProgressBar: {
-    height: 6,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  goalProgressFill: {
-    height: '100%',
-    backgroundColor: '#E60012',
-    borderRadius: 3,
-  },
-  goalRedeemButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    alignSelf: 'flex-start',
-  },
-  earnSection: {
-    marginBottom: 20,
-  },
-  earnItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    padding: 16,
-    borderRadius: 12,
-  },
-  earnIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'white',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  earnContent: {
-    flex: 1,
-  },
-  earnTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
-  },
-  earnDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-  },
-  streakContainer: {
-    alignSelf: 'flex-start',
-  },
-  streakText: {
-    fontSize: 12,
-    color: '#FF6B35',
-    fontWeight: '600',
-  },
-  earnButton: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  earnButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  earnButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  earnButtonTextDisabled: {
-    color: '#999',
-  },
-  referralStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  referralCode: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#E60012',
-    backgroundColor: '#FFF3E0',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  referralCount: {
-    fontSize: 12,
-    color: '#666',
-  },
-  shareButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FF6B35',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  shareButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginLeft: 4,
   },
 });
