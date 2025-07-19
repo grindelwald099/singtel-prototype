@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Image, FlatList, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gift, Star, Trophy, Crown, Zap, Tag, ShoppingBag, Clock, TrendingUp, Award, Coins } from 'lucide-react-native';
+import { Gift, Star, Trophy, Crown, Zap, Tag, ShoppingBag, Clock, TrendingUp, Award, Coins, Users, Calendar, Target, Share2, CheckCircle } from 'lucide-react-native';
 import { createClient } from '@supabase/supabase-js';
 
 const { width } = Dimensions.get('window');
@@ -52,6 +52,10 @@ export default function LoyaltyScreen() {
   const [loading, setLoading] = useState(false);
   const [personalizedDiscounts, setPersonalizedDiscounts] = useState<PersonalizedDiscount[]>([]);
   const [user, setUser] = useState<any>(null);
+  const [dailyLoginStreak, setDailyLoginStreak] = useState(3);
+  const [hasClaimedToday, setHasClaimedToday] = useState(false);
+  const [referralCode, setReferralCode] = useState('JOHN2025');
+  const [totalReferrals, setTotalReferrals] = useState(5);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -66,6 +70,17 @@ export default function LoyaltyScreen() {
     fetchSession();
     generatePersonalizedDiscounts();
   }, []);
+
+  // Featured voucher for points-to-goal tracking
+  const featuredVoucher = {
+    id: 'airpods-pro',
+    title: 'AirPods Pro (2nd Gen)',
+    description: 'Premium wireless earbuds with active noise cancellation',
+    pointsCost: 2650,
+    value: '$329',
+    category: 'Audio',
+    image: 'https://images.pexels.com/photos/3394650/pexels-photo-3394650.jpeg?auto=compress&cs=tinysrgb&w=400'
+  };
 
   const tiers: UserTier[] = [
     {
@@ -176,7 +191,7 @@ export default function LoyaltyScreen() {
       const discounts: PersonalizedDiscount[] = [];
 
       // Mobile accessories recommendations
-      if (categoryPreferences['mobile'] > 0 || Object.keys(itemPreferences).some(item => item.includes('iphone') || item.includes('samsung'))) {
+      if (categoryPreferences['mobile'] > 0 || categoryPreferences['accessories'] > 0 || Object.keys(itemPreferences).some(item => item.includes('iphone') || item.includes('samsung') || item.includes('headphone') || item.includes('case'))) {
         discounts.push({
           id: 'mobile-1',
           productName: 'Wireless Charging Pad',
@@ -203,7 +218,7 @@ export default function LoyaltyScreen() {
       }
 
       // Audio accessories for users interested in entertainment
-      if (categoryPreferences['accessories'] > 0 || Object.keys(itemPreferences).some(item => item.includes('headphone') || item.includes('speaker'))) {
+      if (categoryPreferences['accessories'] > 0 || categoryPreferences['devices & gadgets'] > 0 || Object.keys(itemPreferences).some(item => item.includes('headphone') || item.includes('speaker') || item.includes('audio'))) {
         discounts.push({
           id: 'audio-1',
           productName: 'Noise-Cancelling Headphones',
@@ -215,35 +230,32 @@ export default function LoyaltyScreen() {
           image: 'https://images.pexels.com/photos/3394650/pexels-photo-3394650.jpeg?auto=compress&cs=tinysrgb&w=400',
           reason: 'Based on your audio accessory browsing'
         });
-      }
 
-      // Smart home accessories for broadband users
-      if (categoryPreferences['broadband'] > 0 || categoryPreferences['fibre broadband'] > 0) {
         discounts.push({
-          id: 'smart-1',
-          productName: 'Smart WiFi Router',
-          originalPrice: 199.90,
-          discountedPrice: 139.93,
+          id: 'audio-2',
+          productName: 'Wireless Earbuds',
+          originalPrice: 149.90,
+          discountedPrice: 104.93,
           discountPercentage: 30,
-          pointsRequired: 600,
-          category: 'Smart Home',
-          image: 'https://images.pexels.com/photos/4219654/pexels-photo-4219654.jpeg?auto=compress&cs=tinysrgb&w=400',
-          reason: 'Enhance your broadband experience'
+          pointsRequired: 400,
+          category: 'Audio',
+          image: 'https://images.pexels.com/photos/3394650/pexels-photo-3394650.jpeg?auto=compress&cs=tinysrgb&w=400',
+          reason: 'Great for your audio needs'
         });
       }
 
-      // TV accessories for entertainment enthusiasts
-      if (categoryPreferences['tv'] > 0) {
+      // Gaming and tech accessories
+      if (categoryPreferences['accessories'] > 0 || Object.keys(itemPreferences).some(item => item.includes('gaming') || item.includes('tech'))) {
         discounts.push({
-          id: 'tv-1',
-          productName: 'Streaming Device',
-          originalPrice: 79.90,
-          discountedPrice: 55.93,
+          id: 'gaming-1',
+          productName: 'Gaming Mouse Pad',
+          originalPrice: 39.90,
+          discountedPrice: 27.93,
           discountPercentage: 30,
-          pointsRequired: 400,
-          category: 'Entertainment',
-          image: 'https://images.pexels.com/photos/1201996/pexels-photo-1201996.jpeg?auto=compress&cs=tinysrgb&w=400',
-          reason: 'Perfect for your TV entertainment setup'
+          pointsRequired: 180,
+          category: 'Gaming',
+          image: 'https://images.pexels.com/photos/356056/pexels-photo-356056.jpeg?auto=compress&cs=tinysrgb&w=400',
+          reason: 'Perfect for your tech setup'
         });
       }
 
@@ -252,14 +264,14 @@ export default function LoyaltyScreen() {
         discounts.push(
           {
             id: 'default-1',
-            productName: 'Universal Phone Stand',
-            originalPrice: 29.90,
-            discountedPrice: 20.93,
+            productName: 'Phone Car Mount',
+            originalPrice: 49.90,
+            discountedPrice: 34.93,
             discountPercentage: 30,
-            pointsRequired: 150,
+            pointsRequired: 200,
             category: 'Accessories',
             image: 'https://images.pexels.com/photos/356056/pexels-photo-356056.jpeg?auto=compress&cs=tinysrgb&w=400',
-            reason: 'Popular choice among users'
+            reason: 'Essential mobile accessory'
           },
           {
             id: 'default-2',
@@ -304,10 +316,28 @@ export default function LoyaltyScreen() {
     return Math.min(progress, 100);
   };
 
+  const claimDailyReward = () => {
+    if (!hasClaimedToday) {
+      const baseReward = 50;
+      const streakBonus = Math.min(dailyLoginStreak * 5, 50); // Max 50 bonus points
+      const totalReward = baseReward + streakBonus;
+      
+      setUserPoints(prev => prev + totalReward);
+      setHasClaimedToday(true);
+      setDailyLoginStreak(prev => prev + 1);
+    }
+  };
+
+  const shareReferralCode = () => {
+    // In a real app, this would open the share dialog
+    console.log('Sharing referral code:', referralCode);
+  };
+
   const renderOverview = () => {
     const currentTier = getCurrentTier();
     const nextTier = getNextTier();
     const progress = getProgressToNextTier();
+    const pointsToFeaturedVoucher = Math.max(0, featuredVoucher.pointsCost - userPoints);
 
     return (
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -351,6 +381,41 @@ export default function LoyaltyScreen() {
           </View>
         )}
 
+        {/* Points to Goal Tracker */}
+        <View style={styles.card}>
+          <View style={styles.goalHeader}>
+            <Target size={20} color="#E60012" />
+            <Text style={styles.goalTitle}>Featured Reward</Text>
+          </View>
+          
+          <View style={styles.goalContent}>
+            <Image source={{ uri: featuredVoucher.image }} style={styles.goalImage} />
+            <View style={styles.goalInfo}>
+              <Text style={styles.goalItemName}>{featuredVoucher.title}</Text>
+              <Text style={styles.goalItemValue}>{featuredVoucher.value}</Text>
+              
+              {pointsToFeaturedVoucher > 0 ? (
+                <View style={styles.goalProgress}>
+                  <Text style={styles.goalProgressText}>
+                    {pointsToFeaturedVoucher} more points to redeem
+                  </Text>
+                  <View style={styles.goalProgressBar}>
+                    <View style={[
+                      styles.goalProgressFill, 
+                      { width: `${Math.min((userPoints / featuredVoucher.pointsCost) * 100, 100)}%` }
+                    ]} />
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity style={styles.goalRedeemButton}>
+                  <CheckCircle size={16} color="white" />
+                  <Text style={styles.goalRedeemText}>Ready to Redeem!</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+
         {/* Quick Actions */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
@@ -367,6 +432,64 @@ export default function LoyaltyScreen() {
               <Trophy size={24} color="#4CAF50" />
               <Text style={styles.quickActionText}>View Tiers</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Earn More Points */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Earn More Points</Text>
+          
+          {/* Daily Login Reward */}
+          <View style={styles.earnSection}>
+            <View style={styles.earnItem}>
+              <View style={styles.earnIcon}>
+                <Calendar size={20} color="#4CAF50" />
+              </View>
+              <View style={styles.earnContent}>
+                <Text style={styles.earnTitle}>Daily Login Reward</Text>
+                <Text style={styles.earnDescription}>
+                  {hasClaimedToday 
+                    ? `Claimed today! Come back tomorrow for ${50 + Math.min((dailyLoginStreak + 1) * 5, 50)} points`
+                    : `Earn ${50 + Math.min(dailyLoginStreak * 5, 50)} points (${dailyLoginStreak} day streak)`
+                  }
+                </Text>
+                <View style={styles.streakContainer}>
+                  <Text style={styles.streakText}>🔥 {dailyLoginStreak} day streak</Text>
+                </View>
+              </View>
+              <TouchableOpacity 
+                style={[styles.earnButton, hasClaimedToday && styles.earnButtonDisabled]}
+                onPress={claimDailyReward}
+                disabled={hasClaimedToday}
+              >
+                <Text style={[styles.earnButtonText, hasClaimedToday && styles.earnButtonTextDisabled]}>
+                  {hasClaimedToday ? 'Claimed' : 'Claim'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Friend Referrals */}
+          <View style={styles.earnSection}>
+            <View style={styles.earnItem}>
+              <View style={styles.earnIcon}>
+                <Users size={20} color="#FF6B35" />
+              </View>
+              <View style={styles.earnContent}>
+                <Text style={styles.earnTitle}>Refer Friends</Text>
+                <Text style={styles.earnDescription}>
+                  Earn 500 points for each friend who signs up with your code
+                </Text>
+                <View style={styles.referralStats}>
+                  <Text style={styles.referralCode}>Your code: {referralCode}</Text>
+                  <Text style={styles.referralCount}>👥 {totalReferrals} friends referred</Text>
+                </View>
+              </View>
+              <TouchableOpacity style={styles.shareButton} onPress={shareReferralCode}>
+                <Share2 size={16} color="white" />
+                <Text style={styles.shareButtonText}>Share</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -453,8 +576,8 @@ export default function LoyaltyScreen() {
   const renderDiscounts = () => (
     <ScrollView showsVerticalScrollIndicator={false}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>🤖 Personalized Discounts</Text>
-        <Text style={styles.sectionSubtitle}>AI-curated deals based on your interests</Text>
+        <Text style={styles.sectionTitle}>🤖 Accessory Discounts</Text>
+        <Text style={styles.sectionSubtitle}>AI-curated accessory deals based on your interests</Text>
       </View>
 
       {loading ? (
@@ -1142,5 +1265,159 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     fontWeight: '600',
+  },
+  goalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  goalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginLeft: 8,
+  },
+  goalContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  goalImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    marginRight: 15,
+  },
+  goalInfo: {
+    flex: 1,
+  },
+  goalItemName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  goalItemValue: {
+    fontSize: 14,
+    color: '#E60012',
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  goalProgress: {
+    marginTop: 8,
+  },
+  goalProgressText: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 6,
+  },
+  goalProgressBar: {
+    height: 6,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  goalProgressFill: {
+    height: '100%',
+    backgroundColor: '#E60012',
+    borderRadius: 3,
+  },
+  goalRedeemButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+  },
+  earnSection: {
+    marginBottom: 20,
+  },
+  earnItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 12,
+  },
+  earnIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  earnContent: {
+    flex: 1,
+  },
+  earnTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  earnDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  streakContainer: {
+    alignSelf: 'flex-start',
+  },
+  streakText: {
+    fontSize: 12,
+    color: '#FF6B35',
+    fontWeight: '600',
+  },
+  earnButton: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  earnButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  earnButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  earnButtonTextDisabled: {
+    color: '#999',
+  },
+  referralStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  referralCode: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#E60012',
+    backgroundColor: '#FFF3E0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  referralCount: {
+    fontSize: 12,
+    color: '#666',
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF6B35',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  shareButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginLeft: 4,
   },
 });
