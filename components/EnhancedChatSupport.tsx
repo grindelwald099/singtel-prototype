@@ -27,7 +27,7 @@ interface Message {
   emotion?: string;
 }
 
-export default function EnhancedChatSupport() {
+export default function EnhancedChatSupport({ onClose }: EnhancedChatSupportProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -259,31 +259,6 @@ export default function EnhancedChatSupport() {
     const headers = rows[0];
     const dataRows = rows.slice(1);
 
-    // Calculate optimal column widths based on content
-    const calculateColumnWidths = () => {
-      const columnWidths: number[] = [];
-      
-      // Initialize with header lengths
-      headers.forEach((header, index) => {
-        columnWidths[index] = Math.max(header.length, 8); // Minimum 8 characters
-      });
-      
-      // Check data row lengths
-      dataRows.forEach(row => {
-        row.forEach((cell, index) => {
-          if (columnWidths[index]) {
-            const cellLength = cell.replace(/\*\*/g, '').length; // Remove markdown
-            columnWidths[index] = Math.max(columnWidths[index], cellLength);
-          }
-        });
-      });
-      
-      // Convert to flex basis percentages
-      const totalWidth = columnWidths.reduce((sum, width) => sum + width, 0);
-      return columnWidths.map(width => Math.max((width / totalWidth) * 100, 15)); // Minimum 15%
-    };
-
-    const columnWidths = calculateColumnWidths();
     return (
       <View key={`table-${key}`} style={styles.tableContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -296,7 +271,8 @@ export default function EnhancedChatSupport() {
                   style={[
                     styles.tableHeaderCell, 
                     index === 0 && styles.firstHeaderCell,
-                    { minWidth: Math.max(columnWidths[index] * 2, 100) } // Dynamic width
+                    index === 1 && styles.singtelHeaderCell,
+                    { minWidth: index === 0 ? 140 : 120 }
                   ]}
                 >
                   <Text style={styles.tableHeaderText}>{header}</Text>
@@ -313,10 +289,15 @@ export default function EnhancedChatSupport() {
                     style={[
                       styles.tableCell, 
                       cellIndex === 0 && styles.firstTableCell,
-                      { minWidth: Math.max(columnWidths[cellIndex] * 2, 100) } // Dynamic width
+                      cellIndex === 1 && styles.singtelTableCell,
+                      { minWidth: cellIndex === 0 ? 140 : 120 }
                     ]}
                   >
-                    <Text style={[styles.tableCellText, cellIndex === 0 && styles.firstCellText]}>
+                    <Text style={[
+                      styles.tableCellText, 
+                      cellIndex === 0 && styles.firstCellText,
+                      cellIndex === 1 && styles.singtelCellText
+                    ]}>
                       {cell.replace(/\*\*/g, '')}
                     </Text>
                   </View>
@@ -343,6 +324,11 @@ export default function EnhancedChatSupport() {
               <Text style={styles.headerSubtitle}>Online • Ready to help</Text>
             </View>
           </View>
+          {onClose && (
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Text style={styles.closeButtonText}>✕</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* User Interests */}
@@ -516,6 +502,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
   },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 18,
+    color: '#666',
+    fontWeight: 'bold',
+  },
   interestsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -655,82 +654,112 @@ const styles = StyleSheet.create({
   tableContainer: {
     marginVertical: 12,
     backgroundColor: 'white',
-    borderRadius: 12,
+    borderRadius: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
     overflow: 'hidden',
-    maxWidth: width - 40, // Ensure it fits within screen bounds
+    maxWidth: width - 40,
+    borderWidth: 2,
+    borderColor: '#E60012',
   },
   table: {
     flexDirection: 'column',
-    minWidth: width * 0.8, // Slightly wider for better content display
+    minWidth: width * 0.9,
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#E60012',
-    minHeight: 44, // Consistent header height
+    backgroundColor: 'linear-gradient(135deg, #E60012 0%, #FF4444 100%)',
+    minHeight: 50,
   },
   tableHeaderCell: {
     flex: 1,
-    minWidth: 100, // Fallback minimum width
-    paddingHorizontal: 12,
-    paddingVertical: 14, // Slightly more padding
+    minWidth: 120,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     borderRightWidth: 1,
     borderRightColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center', // Center content vertically
-    alignItems: 'center', // Center content horizontally
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   firstHeaderCell: {
-    minWidth: 130, // Slightly wider for feature names
-    backgroundColor: '#C50010',
-    borderTopLeftRadius: 12, // Match container border radius
+    minWidth: 140,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    borderTopLeftRadius: 16,
+  },
+  singtelHeaderCell: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   tableHeaderText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: 'bold',
     color: 'white',
     textAlign: 'center',
-    lineHeight: 16, // Better line height for readability
+    lineHeight: 18,
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   tableRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    minHeight: 40, // Consistent row height
+    borderBottomColor: '#E9ECEF',
+    minHeight: 48,
   },
   evenTableRow: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F8F9FA',
   },
   tableCell: {
     flex: 1,
-    minWidth: 100, // Fallback minimum width
-    paddingHorizontal: 12,
-    paddingVertical: 12, // Consistent with header
+    minWidth: 120,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderRightWidth: 1,
-    borderRightColor: '#e0e0e0',
+    borderRightColor: '#E0E0E0',
     justifyContent: 'center',
-    alignItems: 'center', // Center content horizontally
+    alignItems: 'center',
   },
   firstTableCell: {
-    minWidth: 130, // Match header width
+    minWidth: 140,
     backgroundColor: '#FFF8F0',
-    borderLeftWidth: 0, // Remove left border for cleaner look
+    borderLeftWidth: 0,
+  },
+  singtelTableCell: {
+    backgroundColor: '#FFF8F0',
+    borderWidth: 1,
+    borderColor: '#FFE4CC',
+    shadowColor: '#E60012',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
   },
   tableCellText: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#333',
     textAlign: 'center',
-    lineHeight: 18,
-    flexWrap: 'wrap', // Allow text wrapping for long content
-    textAlignVertical: 'center', // Center vertically on Android
+    lineHeight: 20,
+    fontWeight: '500',
   },
   firstCellText: {
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: '#E60012',
-    fontSize: 14, // Slightly larger for feature names
+    fontSize: 15,
+    letterSpacing: 0.3,
+  },
+  singtelCellText: {
+    fontWeight: 'bold',
+    color: '#E60012',
+    fontSize: 15,
+    letterSpacing: 0.2,
   },
   loadingWrapper: {
     flexDirection: 'row',

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Dimensions } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import EnhancedChatSupport from '@/components/EnhancedChatSupport';
 import { 
   CreditCard, 
   Plane, 
@@ -19,6 +20,7 @@ const { width, height } = Dimensions.get('window');
 export default function LoginScreen() {
   const router = useRouter();
   const [showDiscovery, setShowDiscovery] = useState(false);
+  const [showSupport, setShowSupport] = useState(false);
 
   const quickActions = [
     { icon: CreditCard, label: 'Activate SIM', color: 'rgba(255, 255, 255, 0.9)' },
@@ -35,8 +37,12 @@ export default function LoginScreen() {
   };
 
   const handleDiscoveryChat = () => {
-    setShowDiscovery(!showDiscovery);
+    setShowSupport(true);
   };
+
+  if (showSupport) {
+    return <EnhancedChatSupport onClose={() => setShowSupport(false)} />;
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -93,7 +99,7 @@ export default function LoginScreen() {
           <Text style={styles.discoveryLabel}>Discovery</Text>
           {showDiscovery && (
             <View style={styles.discoveryTooltip}>
-              <Text style={styles.tooltipText}>Hi! I'm Discovery, your AI assistant. Click Login to explore!</Text>
+              <Text style={styles.tooltipText}>Hi! I'm Discovery, your AI assistant. I can help with plans, comparisons, and more!</Text>
             </View>
           )}
         </TouchableOpacity>
