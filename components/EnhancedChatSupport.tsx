@@ -9,9 +9,11 @@ import {
   ActivityIndicator,
   Dimensions,
   Platform,
+  Linking,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Send, Bot, User, Phone, MessageCircle, Clock } from 'lucide-react-native';
+import { Send, Bot, User, Phone, MessageCircle, Clock, ShoppingBag } from 'lucide-react-native';
 import { detectEmotion, logMessage, analyzeUserInterests, generateSessionId } from '@/lib/chatbot';
 
 const { width } = Dimensions.get('window');
@@ -27,11 +29,15 @@ interface Message {
   emotion?: string;
 }
 
+interface EnhancedChatSupportProps {
+  onClose: () => void;
+}
+
 export default function EnhancedChatSupport({ onClose }: EnhancedChatSupportProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Hello! I'm your Singtel AI assistant. How can I help you today?",
+      text: "Hello! I'm your Singtel AI assistant. How can I help you today? I can help you with plans, devices, billing, and more!",
       sender: 'ai',
       timestamp: new Date(),
     },
@@ -64,6 +70,14 @@ export default function EnhancedChatSupport({ onClose }: EnhancedChatSupportProp
     { label: 'Technical Support', action: "I'm having technical issues" },
     { label: 'New Connection', action: 'I want to apply for a new connection' },
     { label: 'Cancel Service', action: 'I want to cancel my service' },
+  ];
+
+  // Enhanced quick purchase actions
+  const purchaseActions = [
+    { label: '📱 Browse Phones', action: 'Show me the latest phones available with Singtel plans' },
+    { label: '🌐 Broadband Plans', action: "I'm looking for broadband internet plans" },
+    { label: '📡 Mobile Plans', action: 'Show me mobile data plans available' },
+    { label: '🎬 Entertainment Apps', action: 'What entertainment apps do you offer?' },
   ];
 
   const sendMessage = async (messageText: string) => {
@@ -164,7 +178,7 @@ export default function EnhancedChatSupport({ onClose }: EnhancedChatSupportProp
     }
   };
 
-  // Enhanced message formatting with table support
+  // Enhanced message formatting with improved table support and link handling
   const formatMessage = (text: string) => {
     const lines = text.split('\n');
     const elements: JSX.Element[] = [];
@@ -184,6 +198,25 @@ export default function EnhancedChatSupport({ onClose }: EnhancedChatSupportProp
         elements.push(renderTable(currentTable, elements.length));
         currentTable = [];
         inTable = false;
+      }
+
+      // Handle product links with enhanced styling
+      if (line.includes('[🛒') || line.includes('[📱') || line.includes('[🌐')) {
+        const linkMatch = line.match(/\[([^\]]+)\]\(([^)]+)\)/);
+        if (linkMatch) {
+          const [, linkText, url] = linkMatch;
+          elements.push(
+            <TouchableOpacity
+              key={`${index}-${elements.length}`}
+              style={styles.productLinkButton}
+              onPress={() => handleProductLink(url)}
+            >
+              <ShoppingBag size={16} color="white" />
+              <Text style={styles.productLinkText}>{linkText}</Text>
+            </TouchableOpacity>
+          );
+          return;
+        }
       }
 
       // Handle numbered lists
@@ -241,7 +274,7 @@ export default function EnhancedChatSupport({ onClose }: EnhancedChatSupportProp
     return elements;
   };
 
-  // Enhanced table rendering function
+  // Enhanced table rendering function with Singtel branding
   const renderTable = (tableLines: string[], key: number) => {
     if (tableLines.length < 2) return null;
 
@@ -263,7 +296,7 @@ export default function EnhancedChatSupport({ onClose }: EnhancedChatSupportProp
       <View key={`table-${key}`} style={styles.tableContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.table}>
-            {/* Table Header */}
+            {/* Enhanced Table Header with Singtel branding */}
             <View style={styles.tableHeader}>
               {headers.map((header, index) => (
                 <View 
@@ -271,7 +304,7 @@ export default function EnhancedChatSupport({ onClose }: EnhancedChatSupportProp
                   style={[
                     styles.tableHeaderCell, 
                     index === 0 && styles.firstHeaderCell,
-                    index === 1 && styles.singtelHeaderCell,
+                    header.toLowerCase().includes('singtel') && styles.singtelHeaderCell,
                     { minWidth: index === 0 ? 140 : 120 }
                   ]}
                 >
@@ -280,7 +313,7 @@ export default function EnhancedChatSupport({ onClose }: EnhancedChatSupportProp
               ))}
             </View>
 
-            {/* Table Rows */}
+            {/* Enhanced Table Rows */}
             {dataRows.map((row, rowIndex) => (
               <View key={rowIndex} style={[styles.tableRow, rowIndex % 2 === 0 && styles.evenTableRow]}>
                 {row.map((cell, cellIndex) => (
@@ -289,14 +322,14 @@ export default function EnhancedChatSupport({ onClose }: EnhancedChatSupportProp
                     style={[
                       styles.tableCell, 
                       cellIndex === 0 && styles.firstTableCell,
-                      cellIndex === 1 && styles.singtelTableCell,
+                      cell.toLowerCase().includes('singtel') && styles.singtelTableCell,
                       { minWidth: cellIndex === 0 ? 140 : 120 }
                     ]}
                   >
                     <Text style={[
                       styles.tableCellText, 
                       cellIndex === 0 && styles.firstCellText,
-                      cellIndex === 1 && styles.singtelCellText
+                      cell.toLowerCase().includes('singtel') && styles.singtelCellText
                     ]}>
                       {cell.replace(/\*\*/g, '')}
                     </Text>
@@ -310,10 +343,23 @@ export default function EnhancedChatSupport({ onClose }: EnhancedChatSupportProp
     );
   };
 
+  const handleProductLink = async (url: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Error', 'Unable to open this link');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to open link');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.chatContainer}>
-        {/* Header */}
+        {/* Enhanced Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <View style={styles.botIcon}>
@@ -321,7 +367,7 @@ export default function EnhancedChatSupport({ onClose }: EnhancedChatSupportProp
             </View>
             <View>
               <Text style={styles.headerTitle}>Singtel AI Assistant</Text>
-              <Text style={styles.headerSubtitle}>Online • Ready to help</Text>
+              <Text style={styles.headerSubtitle}>Online • Ready to help with purchases & support</Text>
             </View>
           </View>
           {onClose && (
@@ -331,7 +377,7 @@ export default function EnhancedChatSupport({ onClose }: EnhancedChatSupportProp
           )}
         </View>
 
-        {/* User Interests */}
+        {/* User Interests Display */}
         {userInterests.length > 0 && (
           <View style={styles.interestsContainer}>
             <Text style={styles.interestsTitle}>Your interests: </Text>
@@ -343,7 +389,7 @@ export default function EnhancedChatSupport({ onClose }: EnhancedChatSupportProp
           </View>
         )}
 
-        {/* Messages */}
+        {/* Messages with Enhanced Formatting */}
         <ScrollView 
           ref={messagesEndRef}
           style={styles.messagesContainer}
@@ -408,9 +454,22 @@ export default function EnhancedChatSupport({ onClose }: EnhancedChatSupportProp
           )}
         </ScrollView>
 
-        {/* Quick Actions */}
+        {/* Enhanced Quick Actions with Shopping Section */}
         <View style={styles.quickActionsContainer}>
-          <Text style={styles.quickActionsTitle}>Quick Actions</Text>
+          <Text style={styles.quickActionsTitle}>Quick Shopping</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickActionsScroll}>
+            {purchaseActions.map((action, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.purchaseActionButton}
+                onPress={() => handleQuickAction(action.action)}
+              >
+                <Text style={styles.purchaseActionText}>{action.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          
+          <Text style={styles.quickActionsTitle}>Support Actions</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {quickActions.map((action, index) => (
               <TouchableOpacity
@@ -424,15 +483,19 @@ export default function EnhancedChatSupport({ onClose }: EnhancedChatSupportProp
           </ScrollView>
         </View>
 
-        {/* Contact Info */}
+        {/* Enhanced Contact Info */}
         <View style={styles.contactInfo}>
           <View style={styles.contactItem}>
             <Phone size={16} color="#E60012" />
-            <Text style={styles.contactText}>+65 6221 1606</Text>
+            <Text style={styles.contactText}>+65 6221 1606 (24/7)</Text>
+          </View>
+          <View style={styles.contactItem}>
+            <MessageCircle size={16} color="#E60012" />
+            <Text style={styles.contactText}>Live Chat Available</Text>
           </View>
           <View style={styles.contactItem}>
             <Clock size={16} color="#E60012" />
-            <Text style={styles.contactText}>24/7 Support</Text>
+            <Text style={styles.contactText}>Store: 10AM-10PM</Text>
           </View>
         </View>
 
@@ -650,7 +713,30 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  // Enhanced Table Styles
+  // Enhanced Product Link Button Styles
+  productLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E60012',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 25,
+    marginVertical: 8,
+    shadowColor: '#E60012',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+    alignSelf: 'flex-start',
+  },
+  productLinkText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginLeft: 8,
+    letterSpacing: 0.3,
+  },
+  // Enhanced Table Styles with Singtel Branding
   tableContainer: {
     marginVertical: 12,
     backgroundColor: 'white',
@@ -671,7 +757,7 @@ const styles = StyleSheet.create({
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: 'linear-gradient(135deg, #E60012 0%, #FF4444 100%)',
+    backgroundColor: '#E60012',
     minHeight: 50,
   },
   tableHeaderCell: {
@@ -787,7 +873,7 @@ const styles = StyleSheet.create({
   },
   quickActionsContainer: {
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingVertical: 15,
     backgroundColor: 'white',
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
@@ -797,6 +883,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     marginBottom: 8,
+  },
+  quickActionsScroll: {
+    marginBottom: 15,
+  },
+  purchaseActionButton: {
+    backgroundColor: '#E60012',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginRight: 10,
+    shadowColor: '#E60012',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  purchaseActionText: {
+    fontSize: 12,
+    color: 'white',
+    fontWeight: '600',
   },
   quickActionButton: {
     backgroundColor: '#f8f9fa',
@@ -827,7 +933,7 @@ const styles = StyleSheet.create({
   },
   contactText: {
     marginLeft: 6,
-    fontSize: 12,
+    fontSize: 11,
     color: '#666',
     fontWeight: '600',
   },

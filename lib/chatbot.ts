@@ -4,7 +4,7 @@ const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://rsqytbhetid
 const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzcXl0YmhldGlkZ3pwc2lmaGl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3NzczMzMsImV4cCI6MjA2NzM1MzMzM30.Y9S4HRe2XVqDCF93zCKcqfXHHLd3symW1knj9uAyIiQ';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Enhanced emotion detection (matching Next.js implementation)
+// Enhanced emotion detection with comprehensive keyword matching
 export function detectEmotion(text: string): string {
   const lowerText = text.toLowerCase();
 
@@ -24,6 +24,10 @@ export function detectEmotion(text: string): string {
     "unclear", "puzzled"
   ];
 
+  const angryKeywords = ["angry", "frustrated", "terrible", "awful", "hate", "annoyed"];
+  const happyKeywords = ["happy", "great", "excellent", "amazing", "wonderful", "fantastic", "love"];
+  const sadKeywords = ["sad", "disappointed", "upset", "depressed"];
+
   // Check for specific emotion keywords first
   if (urgentKeywords.some(word => lowerText.includes(word))) {
     return "urgent";
@@ -31,28 +35,15 @@ export function detectEmotion(text: string): string {
     return "price-sensitive";
   } else if (confusionKeywords.some(word => lowerText.includes(word))) {
     return "confused";
-  }
-
-  // Simple sentiment analysis based on positive/negative words
-  const positiveWords = [
-    "good", "great", "excellent", "amazing", "wonderful", "fantastic",
-    "love", "like", "happy", "satisfied"
-  ];
-  const negativeWords = [
-    "bad", "terrible", "awful", "hate", "dislike", "angry",
-    "frustrated", "annoyed", "upset", "disappointed"
-  ];
-
-  const positiveCount = positiveWords.filter(word => lowerText.includes(word)).length;
-  const negativeCount = negativeWords.filter(word => lowerText.includes(word)).length;
-
-  if (positiveCount > negativeCount) {
-    return "happy";
-  } else if (negativeCount > positiveCount) {
+  } else if (angryKeywords.some(word => lowerText.includes(word))) {
     return "frustrated";
-  } else {
-    return "neutral";
+  } else if (happyKeywords.some(word => lowerText.includes(word))) {
+    return "happy";
+  } else if (sadKeywords.some(word => lowerText.includes(word))) {
+    return "sad";
   }
+
+  return "neutral";
 }
 
 // Topic Detection (matching Next.js implementation)
@@ -120,7 +111,7 @@ export async function logMessage(messageData: {
   }
 }
 
-// Analyze user interests (matching Next.js implementation)
+// Enhanced analyze user interests with comprehensive tracking
 export async function analyzeUserInterests(sessionId: string) {
   try {
     const { data: messages } = await supabase
@@ -150,6 +141,14 @@ export async function analyzeUserInterests(sessionId: string) {
       if (allText.includes('broadband') || allText.includes('wifi')) {
         interests.push('Home Internet');
         recommendedProducts.push('Fiber broadband', 'Mesh WiFi systems');
+      }
+      if (allText.includes('entertainment') || allText.includes('streaming')) {
+        interests.push('Entertainment Services');
+        recommendedProducts.push('Streaming bundles', 'Entertainment apps');
+      }
+      if (allText.includes('gaming') || allText.includes('game')) {
+        interests.push('Gaming');
+        recommendedProducts.push('Gaming plans', 'Low-latency connections');
       }
 
       // Extract keywords
@@ -184,6 +183,8 @@ export function getEmotionColor(emotion?: string): string {
       return '#FFA500';
     case 'price-sensitive':
       return '#9C27B0';
+    case 'sad':
+      return '#2196F3';
     default:
       return '#666';
   }
