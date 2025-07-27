@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,53 +6,310 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  ActivityIndicator,
-  Dimensions,
+  KeyboardAvoidingView,
   Platform,
-  Linking,
+  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Send, Bot, User, Phone, MessageCircle, Clock, ShoppingBag } from 'lucide-react-native';
-import { detectEmotion, logMessage, analyzeUserInterests, generateSessionId } from '@/lib/chatbot';
+import { Send, Bot, User, X, MessageCircle, Smartphone, CreditCard } from 'lucide-react-native';
+import { createClient } from '@supabase/supabase-js';
 
-const { width } = Dimensions.get('window');
-
-// Flask API URL
-const FLASK_API_URL = 'https://d0f37a99-c037-479b-a511-f82414e21fcd-00-1fn62vy32m8ox.pike.replit.dev:5000';
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://rsqytbhetidgzpsifhiv.supabase.co';
+const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzcXl0YmhldGlkZ3pwc2lmaGl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE3NzczMzMsImV4cCI6MjA2NzM1MzMzM30.Y9S4HRe2XVqDCF93zCKcqfXHHLd3symW1knj9uAyIiQ';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface Message {
   id: string;
   text: string;
-  sender: 'user' | 'ai';
+  isUser: boolean;
   timestamp: Date;
   emotion?: string;
+  hasComparisonTable?: boolean;
+  comparisonData?: any;
 }
 
-interface EnhancedChatSupportProps {
+interface SupportChatbotProps {
   onClose: () => void;
 }
 
-export default function EnhancedChatSupport({ onClose }: EnhancedChatSupportProps) {
+// Comparison Table Component
+const ComparisonTable = ({ data }: { data: any }) => {
+  return (
+    <View style={comparisonStyles.container}>
+      <Text style={comparisonStyles.title}>📊 Plan Comparison</Text>
+      
+      <View style={comparisonStyles.tableContainer}>
+        {/* Header Row */}
+        <View style={comparisonStyles.headerRow}>
+          <View style={comparisonStyles.featureHeader}>
+            <Text style={comparisonStyles.headerText}>Feature</Text>
+          </View>
+          <View style={comparisonStyles.planHeader}>
+            <Text style={comparisonStyles.headerText}>{data.plan1.name}</Text>
+          </View>
+          <View style={comparisonStyles.planHeader}>
+            <Text style={comparisonStyles.headerText}>{data.plan2.name}</Text>
+          </View>
+        </View>
+
+        {/* Price Row */}
+        <View style={comparisonStyles.row}>
+          <View style={comparisonStyles.featureCell}>
+            <Text style={comparisonStyles.featureText}>💰 Price</Text>
+          </View>
+          <View style={comparisonStyles.planCell}>
+            <Text style={comparisonStyles.planText}>{data.plan1.price}</Text>
+          </View>
+          <View style={[comparisonStyles.planCell, comparisonStyles.recommendedCell]}>
+            <Text style={[comparisonStyles.planText, comparisonStyles.recommendedText]}>
+              {data.plan2.price}
+            </Text>
+          </View>
+        </View>
+
+        {/* Data Row */}
+        <View style={comparisonStyles.row}>
+          <View style={comparisonStyles.featureCell}>
+            <Text style={comparisonStyles.featureText}>📶 Data</Text>
+          </View>
+          <View style={comparisonStyles.planCell}>
+            <Text style={comparisonStyles.planText}>{data.plan1.data}</Text>
+          </View>
+          <View style={[comparisonStyles.planCell, comparisonStyles.recommendedCell]}>
+            <Text style={[comparisonStyles.planText, comparisonStyles.recommendedText]}>
+              {data.plan2.data}
+            </Text>
+          </View>
+        </View>
+
+        {/* Network Row */}
+        <View style={comparisonStyles.row}>
+          <View style={comparisonStyles.featureCell}>
+            <Text style={comparisonStyles.featureText}>🌐 Network</Text>
+          </View>
+          <View style={comparisonStyles.planCell}>
+            <Text style={comparisonStyles.planText}>{data.plan1.network}</Text>
+          </View>
+          <View style={[comparisonStyles.planCell, comparisonStyles.recommendedCell]}>
+            <Text style={[comparisonStyles.planText, comparisonStyles.recommendedText]}>
+              {data.plan2.network}
+            </Text>
+          </View>
+        </View>
+
+        {/* Calls/SMS Row */}
+        <View style={comparisonStyles.row}>
+          <View style={comparisonStyles.featureCell}>
+            <Text style={comparisonStyles.featureText}>📞 Calls/SMS</Text>
+          </View>
+          <View style={comparisonStyles.planCell}>
+            <Text style={comparisonStyles.planText}>{data.plan1.calls}</Text>
+          </View>
+          <View style={[comparisonStyles.planCell, comparisonStyles.recommendedCell]}>
+            <Text style={[comparisonStyles.planText, comparisonStyles.recommendedText]}>
+              {data.plan2.calls}
+            </Text>
+          </View>
+        </View>
+
+        {/* Entertainment Row */}
+        <View style={comparisonStyles.row}>
+          <View style={comparisonStyles.featureCell}>
+            <Text style={comparisonStyles.featureText}>🎬 Entertainment</Text>
+          </View>
+          <View style={comparisonStyles.planCell}>
+            <Text style={comparisonStyles.planText}>{data.plan1.entertainment}</Text>
+          </View>
+          <View style={[comparisonStyles.planCell, comparisonStyles.recommendedCell]}>
+            <Text style={[comparisonStyles.planText, comparisonStyles.recommendedText]}>
+              {data.plan2.entertainment}
+            </Text>
+          </View>
+        </View>
+
+        {/* Security Row */}
+        <View style={comparisonStyles.row}>
+          <View style={comparisonStyles.featureCell}>
+            <Text style={comparisonStyles.featureText}>🛡️ Security</Text>
+          </View>
+          <View style={comparisonStyles.planCell}>
+            <Text style={comparisonStyles.planText}>{data.plan1.security}</Text>
+          </View>
+          <View style={[comparisonStyles.planCell, comparisonStyles.recommendedCell]}>
+            <Text style={[comparisonStyles.planText, comparisonStyles.recommendedText]}>
+              {data.plan2.security}
+            </Text>
+          </View>
+        </View>
+
+        {/* Roaming Row */}
+        <View style={comparisonStyles.row}>
+          <View style={comparisonStyles.featureCell}>
+            <Text style={comparisonStyles.featureText}>✈️ Roaming</Text>
+          </View>
+          <View style={comparisonStyles.planCell}>
+            <Text style={comparisonStyles.planText}>{data.plan1.roaming}</Text>
+          </View>
+          <View style={[comparisonStyles.planCell, comparisonStyles.recommendedCell]}>
+            <Text style={[comparisonStyles.planText, comparisonStyles.recommendedText]}>
+              {data.plan2.roaming}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Recommended Badge */}
+      <View style={comparisonStyles.recommendedBadge}>
+        <Text style={comparisonStyles.recommendedBadgeText}>
+          ⭐ {data.plan2.name} Recommended
+        </Text>
+      </View>
+
+      {/* Value Analysis */}
+      <View style={comparisonStyles.analysisContainer}>
+        <Text style={comparisonStyles.analysisTitle}>💡 Why {data.plan2.name} is Better Value</Text>
+        {data.valuePoints.map((point: string, index: number) => (
+          <Text key={index} style={comparisonStyles.valuePoint}>
+            • {point}
+          </Text>
+        ))}
+      </View>
+    </View>
+  );
+};
+
+const comparisonStyles = StyleSheet.create({
+  container: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    marginVertical: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  tableContainer: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    backgroundColor: '#E60012',
+  },
+  row: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  featureHeader: {
+    flex: 1.2,
+    padding: 12,
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(255,255,255,0.3)',
+  },
+  planHeader: {
+    flex: 1,
+    padding: 12,
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(255,255,255,0.3)',
+  },
+  featureCell: {
+    flex: 1.2,
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRightWidth: 1,
+    borderRightColor: '#eee',
+    justifyContent: 'center',
+  },
+  planCell: {
+    flex: 1,
+    padding: 12,
+    borderRightWidth: 1,
+    borderRightColor: '#eee',
+    justifyContent: 'center',
+  },
+  recommendedCell: {
+    backgroundColor: '#fff8f0',
+    borderRightWidth: 0,
+  },
+  headerText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  featureText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#333',
+  },
+  planText: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+  },
+  recommendedText: {
+    color: '#E60012',
+    fontWeight: '600',
+  },
+  recommendedBadge: {
+    backgroundColor: '#E60012',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    alignSelf: 'center',
+    marginTop: 12,
+  },
+  recommendedBadgeText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  analysisContainer: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  analysisTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#E60012',
+    marginBottom: 8,
+  },
+  valuePoint: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+    lineHeight: 20,
+  },
+});
+
+export default function SupportChatbot({ onClose }: SupportChatbotProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Hello! I'm your Singtel AI assistant. How can I help you today? I can help you with plans, devices, billing, and more!",
-      sender: 'ai',
+      text: "📱 Hello! I'm your Singtel Assistant. How can I help you today? I can help you with plans, devices, billing, and more!",
+      isUser: false,
       timestamp: new Date(),
-    },
+    }
   ]);
-  const [inputMessage, setInputMessage] = useState('');
+  const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionId, setSessionId] = useState('');
-  const [userInterests, setUserInterests] = useState<string[]>([]);
-  const messagesEndRef = useRef<ScrollView>(null);
-
-  useEffect(() => {
-    const newSessionId = generateSessionId();
-    setSessionId(newSessionId);
-    scrollToBottom();
-  }, []);
+  const [conversationHistory, setConversationHistory] = useState<any[]>([]);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     scrollToBottom();
@@ -60,95 +317,472 @@ export default function EnhancedChatSupport({ onClose }: EnhancedChatSupportProp
 
   const scrollToBottom = () => {
     setTimeout(() => {
-      messagesEndRef.current?.scrollToEnd({ animated: true });
+      scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 100);
   };
 
-  const quickActions = [
-    { label: 'Check Bill', action: 'I want to check my current bill' },
-    { label: 'Plan Upgrade', action: "I'm interested in upgrading my plan" },
-    { label: 'Technical Support', action: "I'm having technical issues" },
-    { label: 'New Connection', action: 'I want to apply for a new connection' },
-    { label: 'Cancel Service', action: 'I want to cancel my service' },
-  ];
+  // Emotion detection function
+  const detectEmotion = (text: string): string => {
+    const urgentKeywords = ['urgent', 'asap', 'hurry', 'immediately', 'now', 'quick', 'faster', 'rush'];
+    const priceKeywords = ['cheap', 'affordable', 'inexpensive', 'budget', 'save', 'expensive', 'money'];
+    const confusionKeywords = ['confused', 'confusing', 'help', 'lost', "don't understand", 'unclear'];
+    const frustratedKeywords = ['angry', 'frustrated', 'annoyed', 'terrible', 'awful', 'hate'];
+    const happyKeywords = ['great', 'awesome', 'excellent', 'love', 'perfect', 'amazing'];
 
-  // Enhanced quick purchase actions
-  const purchaseActions = [
-    { label: '📱 Browse Phones', action: 'Show me the latest phones available with Singtel plans' },
-    { label: '🌐 Broadband Plans', action: "I'm looking for broadband internet plans" },
-    { label: '📡 Mobile Plans', action: 'Show me mobile data plans available' },
-    { label: '🎬 Entertainment Apps', action: 'What entertainment apps do you offer?' },
-  ];
+    const lowerText = text.toLowerCase();
 
-  const sendMessage = async (messageText: string) => {
-    if (!messageText.trim()) return;
+    if (urgentKeywords.some(word => lowerText.includes(word))) return 'urgent';
+    if (priceKeywords.some(word => lowerText.includes(word))) return 'price-sensitive';
+    if (confusionKeywords.some(word => lowerText.includes(word))) return 'confused';
+    if (frustratedKeywords.some(word => lowerText.includes(word))) return 'frustrated';
+    if (happyKeywords.some(word => lowerText.includes(word))) return 'happy';
 
-    const emotion = detectEmotion(messageText);
+    return 'neutral';
+  };
+
+  // Fetch data from Supabase
+  const fetchPlanData = async () => {
+    try {
+      const [singtelData, starhubData, simbaData, mobileData] = await Promise.all([
+        supabase.from('Singtel_Sim_Plans').select('*').limit(15),
+        supabase.from('Starhub_Sim_Plans').select('*').limit(10),
+        supabase.from('Simba_Sim_Plans').select('*').limit(10),
+        supabase.from('Mobile_with_SIM').select('*').limit(15),
+      ]);
+
+      return {
+        singtel: singtelData.data || [],
+        starhub: starhubData.data || [],
+        simba: simbaData.data || [],
+        mobile: mobileData.data || [],
+      };
+    } catch (error) {
+      console.error('Error fetching plan data:', error);
+      return { singtel: [], starhub: [], simba: [], mobile: [] };
+    }
+  };
+
+  // Generate AI response
+  const generateResponse = async (userMessage: string, emotion: string): Promise<{ text: string; hasComparisonTable?: boolean; comparisonData?: any }> => {
+    const planData = await fetchPlanData();
+    
+    // Check for purchase intent
+    const lastBotMessage = messages[messages.length - 1];
+    if (!lastBotMessage.isUser && lastBotMessage.text.includes('Would you like to proceed with purchasing')) {
+      if (userMessage.toLowerCase().includes('yes')) {
+        // Find matching plan and return purchase link
+        const singtelPlan = planData.singtel.find(plan => 
+          lastBotMessage.text.toLowerCase().includes(plan['Plan Name']?.toLowerCase() || '')
+        );
+        if (singtelPlan && singtelPlan['Buy_Link']) {
+          return {
+            text: `Great choice! 🎉 You can purchase the ${singtelPlan['Plan Name']} here: ${singtelPlan['Buy_Link']}\n\nIs there anything else I can help you with?`
+          };
+        }
+        return {
+          text: "I'll help you find the right plan. Please visit singtel.com or contact our sales team for assistance with your purchase."
+        };
+      } else {
+        return {
+          text: "No problem! Is there anything else I can help you with? I'm here to assist with any questions about our plans, devices, or services."
+        };
+      }
+    }
+
+    // Generate contextual response based on user input and emotion
+    return generateContextualResponse(userMessage, emotion, planData);
+  };
+
+  const generateContextualResponse = (userMessage: string, emotion: string, planData: any): { text: string; hasComparisonTable?: boolean; comparisonData?: any } => {
+    const lowerMessage = userMessage.toLowerCase();
+
+    // Emotion-based response adjustments
+    const emotionResponses = {
+      frustrated: "I understand your frustration, and I'm here to help resolve this quickly. ",
+      confused: "No worries! Let me break this down for you step by step. ",
+      urgent: "I'll help you find what you need right away. ",
+      'price-sensitive': "I'll show you our most cost-effective options. ",
+      happy: "Great to hear! I'm excited to help you find the perfect solution. ",
+      neutral: "I'm happy to help you with that. "
+    };
+
+    let response = emotionResponses[emotion as keyof typeof emotionResponses] || emotionResponses.neutral;
+
+    // Specific plan comparison requests (e.g., "compare star plan m with singtel")
+    if (lowerMessage.includes('star plan m') || (lowerMessage.includes('starhub') && lowerMessage.includes('singtel') && lowerMessage.includes('compare'))) {
+      // Find StarHub Star Plan M
+      const starPlanM = planData.starhub.find((plan: any) => 
+        plan['Plan Name']?.toLowerCase().includes('star plan m') || 
+        (plan['Data Allowance']?.includes('150') && plan['Price per Month']?.includes('22'))
+      );
+      
+      // Find comparable Singtel plan (similar data allowance)
+      const comparableSingtelPlan = planData.singtel.find((plan: any) => 
+        plan['Data and Roaming']?.toLowerCase().includes('150gb') ||
+        plan['Plan Name']?.toLowerCase().includes('core')
+      );
+
+      if (starPlanM && comparableSingtelPlan) {
+        const comparisonData = {
+          plan1: {
+            name: 'StarHub Star Plan M',
+            price: starPlanM['Price per Month'] || 'S$22/mth',
+            data: starPlanM['Data Allowance'] || '150GB',
+            network: starPlanM['Network Type'] || '5G',
+            calls: starPlanM['Local Calls'] || 'Basic',
+            entertainment: 'None',
+            security: 'None',
+            roaming: starPlanM['Data Roaming'] || 'Extra charges apply'
+          },
+          plan2: {
+            name: 'Singtel Core',
+            price: comparableSingtelPlan['Price'] || 'S$40/mth',
+            data: comparableSingtelPlan['Data and Roaming'] || '150GB + 1GB Asia Roaming',
+            network: '5G + Priority Network Access',
+            calls: comparableSingtelPlan['Talktime and SMS'] || '700 mins + 700 SMS',
+            entertainment: comparableSingtelPlan['Disney+ Offer'] || '6 mths Disney+ Premium',
+            security: comparableSingtelPlan['McAfee Security'] || '6 mths McAfee Mobile Security',
+            roaming: '1GB Asia Roaming included'
+          },
+          valuePoints: [
+            'Asia roaming included (worth S$15+/month)',
+            'Disney+ Premium included (worth S$11.98/month)',
+            'McAfee Security included (worth S$5/month)',
+            '700 mins calls + 700 SMS included (worth S$10+/month)',
+            'Priority network access for faster speeds',
+            '99.9% coverage vs 98% coverage',
+            '24/7 priority customer support'
+          ]
+        };
+
+        response += "Here's a detailed comparison between StarHub Star Plan M and Singtel Core:\n\n";
+        response += "🎯 WHY SINGTEL CORE IS BETTER VALUE:\n\n";
+        response += "While StarHub is cheaper upfront at S$22/month, Singtel Core at S$40/month includes S$42+ worth of extras for just S$18 more. You're actually saving money while getting premium services!\n\n";
+        response += "Would you like to proceed with purchasing the Singtel Core plan? (Yes/No)";
+
+        return {
+          text: response,
+          hasComparisonTable: true,
+          comparisonData
+        };
+      }
+    }
+
+    // Similar specific comparisons for other plans
+    if (lowerMessage.includes('star plan l') || (lowerMessage.includes('starhub') && lowerMessage.includes('200gb'))) {
+      const starPlanL = planData.starhub.find((plan: any) => 
+        plan['Plan Name']?.toLowerCase().includes('star plan l') || 
+        plan['Data Allowance']?.includes('200')
+      );
+      
+      const comparableSingtelPlan = planData.singtel.find((plan: any) => 
+        plan['Plan Name']?.toLowerCase().includes('priority plus') ||
+        plan['Data and Roaming']?.toLowerCase().includes('priority')
+      );
+
+      if (starPlanL && comparableSingtelPlan) {
+        const comparisonData = {
+          plan1: {
+            name: 'StarHub Star Plan L',
+            price: starPlanL['Price per Month'] || 'S$32/mth',
+            data: starPlanL['Data Allowance'] || '200GB',
+            network: 'Standard 5G',
+            calls: 'Basic',
+            entertainment: 'None',
+            security: 'None',
+            roaming: 'Extra charges apply'
+          },
+          plan2: {
+            name: 'Singtel Priority Plus',
+            price: comparableSingtelPlan['Price'] || 'S$55/mth',
+            data: 'Priority Network Lane (4X Faster)',
+            network: 'Priority 5G Access',
+            calls: comparableSingtelPlan['Talktime and SMS'] || '1000 mins + 1000 SMS',
+            entertainment: 'Premium entertainment packages',
+            security: 'Advanced security features',
+            roaming: 'Priority roaming support'
+          },
+          valuePoints: [
+            '4X faster speeds during peak hours',
+            'Priority customer support (jump the queue)',
+            'Guaranteed network performance',
+            'Premium entertainment packages included',
+            'Advanced security features',
+            'Priority roaming support worldwide'
+          ]
+        };
+
+        response += "Here's a detailed comparison between StarHub Star Plan L and Singtel Priority Plus:\n\n";
+        response += "🚀 WHY SINGTEL PRIORITY PLUS IS SUPERIOR:\n\n";
+        response += "For S$23 more, you get guaranteed 4X faster speeds, priority support, and premium features that ensure consistent performance even during peak hours.\n\n";
+        response += "Would you like to proceed with purchasing the Singtel Priority Plus plan? (Yes/No)";
+
+        return {
+          text: response,
+          hasComparisonTable: true,
+          comparisonData
+        };
+      }
+    }
+
+    // Comprehensive plan comparison requests
+    if (lowerMessage.includes('compare') || lowerMessage.includes('vs') || lowerMessage.includes('versus') || lowerMessage.includes('difference') || lowerMessage.includes('all plans') || lowerMessage.includes('providers')) {
+      response += "Here's a comprehensive comparison across all major providers:\n\n";
+      
+      // Singtel Plans
+      response += "🔴 **SINGTEL PLANS** (Recommended)\n";
+      const topSingtelPlans = planData.singtel.slice(0, 3);
+      topSingtelPlans.forEach((plan: any) => {
+        response += `• **${plan['Plan Name'] || 'Plan'}** - ${plan['Price'] || 'Contact for pricing'}\n`;
+        response += `  Data: ${plan['Data and Roaming'] || 'Unlimited'}\n`;
+        response += `  Calls: ${plan['Talktime and SMS'] || 'Unlimited'}\n`;
+        if (plan['Disney+ Offer']) response += `  Entertainment: ${plan['Disney+ Offer']}\n`;
+        if (plan['McAfee Security']) response += `  Security: ${plan['McAfee Security']}\n`;
+        response += '\n';
+      });
+      
+      // StarHub Plans
+      if (planData.starhub.length > 0) {
+        response += "⭐ **STARHUB PLANS**\n";
+        const topStarhubPlans = planData.starhub.slice(0, 2);
+        topStarhubPlans.forEach((plan: any) => {
+          response += `• **${plan['Plan Name'] || 'Plan'}** - ${plan['Price per Month'] || 'Contact for pricing'}\n`;
+          response += `  Data: ${plan['Data Allowance'] || 'Check with provider'}\n`;
+          response += `  Network: ${plan['Network Type'] || '4G/5G'}\n\n`;
+        });
+      }
+      
+      // Simba Plans
+      if (planData.simba.length > 0) {
+        response += "🦁 **SIMBA PLANS**\n";
+        const topSimbaPlans = planData.simba.slice(0, 2);
+        topSimbaPlans.forEach((plan: any) => {
+          response += `• **Plan** - ${plan['Price'] || 'Contact for pricing'}\n`;
+          response += `  Data: ${plan['Data Allowance'] || 'Check with provider'}\n`;
+          response += `  Duration: ${plan['Duration'] || 'Monthly'}\n\n`;
+        });
+      }
+      
+      response += "🏆 **WHY CHOOSE SINGTEL?**\n";
+      response += "✅ Best network coverage in Singapore\n";
+      response += "✅ Exclusive entertainment packages (Disney+, Max)\n";
+      response += "✅ Superior customer service\n";
+      response += "✅ Advanced 5G network\n";
+      response += "✅ Comprehensive security features\n\n";
+      
+      response += "Would you like to proceed with purchasing any of these Singtel plans? (Yes/No)";
+      return { text: response };
+    }
+
+    // Specific provider queries
+    if (lowerMessage.includes('singtel') && (lowerMessage.includes('plan') || lowerMessage.includes('sim'))) {
+      response += "Here are our top Singtel plans:\n\n";
+      const singtelPlans = planData.singtel.slice(0, 4);
+      singtelPlans.forEach((plan: any) => {
+        response += `**${plan['Plan Name']}** - ${plan['Price']}\n`;
+        response += `• Data: ${plan['Data and Roaming']}\n`;
+        response += `• Calls: ${plan['Talktime and SMS']}\n`;
+        if (plan['Entertainment Package']) response += `• Entertainment: ${plan['Entertainment Package']}\n`;
+        response += '\n';
+      });
+      return { text: response };
+    }
+    
+    if (lowerMessage.includes('starhub')) {
+      response += "Here are StarHub plans for comparison:\n\n";
+      const starhubPlans = planData.starhub.slice(0, 3);
+      starhubPlans.forEach((plan: any) => {
+        response += `**${plan['Plan Name']}** - ${plan['Price per Month']}\n`;
+        response += `• Data: ${plan['Data Allowance']}\n`;
+        response += `• Network: ${plan['Network Type']}\n\n`;
+      });
+      response += "However, I'd recommend considering Singtel for better coverage and exclusive benefits!";
+      return { text: response };
+    }
+    
+    if (lowerMessage.includes('simba')) {
+      response += "Here are Simba plans for comparison:\n\n";
+      const simbaPlans = planData.simba.slice(0, 3);
+      simbaPlans.forEach((plan: any) => {
+        response += `**Plan** - ${plan['Price']}\n`;
+        response += `• Data: ${plan['Data Allowance']}\n`;
+        response += `• Duration: ${plan['Duration']}\n\n`;
+      });
+      response += "While Simba offers competitive pricing, Singtel provides superior network quality and customer support!";
+      return { text: response };
+    }
+
+    // General plan queries
+    if (lowerMessage.includes('plan') || lowerMessage.includes('sim')) {
+      if (lowerMessage.includes('unlimited') || lowerMessage.includes('data')) {
+        const unlimitedPlans = planData.singtel.filter((plan: any) => 
+          plan['Data and Roaming']?.toLowerCase().includes('unlimited') || 
+          plan['Plan Name']?.toLowerCase().includes('unlimited')
+        );
+        
+        if (unlimitedPlans.length > 0) {
+          response += "Here are our unlimited data plans:\n\n";
+          unlimitedPlans.slice(0, 2).forEach((plan: any) => {
+            response += `**${plan['Plan Name']}** - ${plan['Price']}\n`;
+            response += `• ${plan['Data and Roaming']}\n`;
+            response += `• ${plan['Talktime and SMS']}\n\n`;
+          });
+        } else {
+          response += "Here are our high-data plans:\n\n";
+          const highDataPlans = planData.singtel.slice(0, 3);
+          highDataPlans.forEach((plan: any) => {
+            response += `**${plan['Plan Name']}** - ${plan['Price']}\n`;
+            response += `• ${plan['Data and Roaming']}\n\n`;
+          });
+        }
+      } else if (lowerMessage.includes('cheap') || lowerMessage.includes('budget') || lowerMessage.includes('affordable')) {
+        response += "Here are our most affordable plans:\n\n";
+        const affordablePlans = planData.singtel.slice(0, 2);
+        affordablePlans.forEach((plan: any) => {
+          response += `**${plan['Plan Name']}** - ${plan['Price']}\n`;
+          response += `• Great value with ${plan['Data and Roaming']}\n`;
+          response += `• ${plan['Talktime and SMS']}\n\n`;
+        });
+        
+        // Show competitor budget options for comparison
+        if (planData.simba.length > 0) {
+          response += "For comparison, budget options from other providers:\n";
+          response += `• Simba: ${planData.simba[0]?.['Price'] || 'Check pricing'}\n`;
+        }
+        response += "\nSingtel offers better value with superior network quality!";
+      } else {
+        response += "Here are our popular plans:\n\n";
+        const popularPlans = planData.singtel.slice(0, 3);
+        popularPlans.forEach((plan: any) => {
+          response += `**${plan['Plan Name']}** - ${plan['Price']}\n`;
+          response += `• ${plan['Data and Roaming']}\n\n`;
+        });
+      }
+      return { text: response };
+    }
+
+    // Device queries
+    if (lowerMessage.includes('phone') || lowerMessage.includes('device') || lowerMessage.includes('mobile')) {
+      response += "We have great mobile devices available:\n\n";
+      const devices = planData.mobile.slice(0, 3);
+      devices.forEach((device: any) => {
+        response += `**${device['Phone Name']}**\n`;
+        if (device['Discount Offer']) response += `• Special offer: ${device['Discount Offer']}\n`;
+        if (device['Product_Link']) response += `• More info: Available\n`;
+        response += '\n';
+      });
+      response += "Would you like to see more devices or learn about our mobile plans?";
+      return { text: response };
+    }
+
+    // Network coverage queries
+    if (lowerMessage.includes('coverage') || lowerMessage.includes('network quality') || lowerMessage.includes('signal')) {
+      response += "Network Coverage Comparison:\n\n";
+      response += "🔴 **SINGTEL**: #1 network in Singapore\n";
+      response += "• 99.9% island-wide coverage\n";
+      response += "• Fastest 5G speeds\n";
+      response += "• Best indoor coverage\n\n";
+      response += "⭐ **STARHUB**: Good coverage\n";
+      response += "• 98% coverage\n";
+      response += "• Decent 5G network\n\n";
+      response += "🦁 **SIMBA**: Uses M1 network\n";
+      response += "• 95% coverage\n";
+      response += "• Limited 5G areas\n\n";
+      response += "Singtel consistently ranks #1 for network quality and coverage!";
+      return { text: response };
+    }
+
+    // Billing queries
+    if (lowerMessage.includes('bill') || lowerMessage.includes('payment') || lowerMessage.includes('charge')) {
+      response += "For billing inquiries:\n\n";
+      response += "• Check your bill online at MySingtel app\n";
+      response += "• Set up auto-payment to avoid late fees\n";
+      response += "• Contact billing support: 1688\n\n";
+      response += "Is there a specific billing issue I can help you with?";
+      return { text: response };
+    }
+
+    // Technical support
+    if (lowerMessage.includes('network') || lowerMessage.includes('signal') || lowerMessage.includes('internet') || lowerMessage.includes('slow')) {
+      response += "For network issues, try these steps:\n\n";
+      response += "1. Restart your device\n";
+      response += "2. Check if you're in a coverage area\n";
+      response += "3. Update your device settings\n";
+      response += "4. Contact technical support: 1688\n\n";
+      response += "Are you experiencing issues in a specific location?";
+      return { text: response };
+    }
+
+    // General help
+    if (lowerMessage.includes('help') || lowerMessage.includes('support')) {
+      response += "I can help you with:\n\n";
+      response += "📱 Mobile plans and pricing\n";
+      response += "📞 Device recommendations\n";
+      response += "💳 Billing and payments\n";
+      response += "🌐 Network and technical support\n";
+      response += "🎯 Plan comparisons\n\n";
+      response += "What would you like to know more about?";
+      return { text: response };
+    }
+
+    // Default response
+    response += "I'd be happy to help you with that! Here are some things I can assist with:\n\n";
+    response += "• Compare plans across all providers\n";
+    response += "• Singtel, StarHub, and Simba plan details\n";
+    response += "• Mobile device recommendations\n";
+    response += "• Network coverage information\n";
+    response += "• Billing and technical support\n\n";
+    response += "Could you tell me more about what you're looking for?";
+    
+    return { text: response };
+  };
+
+  const sendMessage = async () => {
+    if (!inputText.trim() || isLoading) return;
+
     const userMessage: Message = {
       id: Date.now().toString(),
-      text: messageText,
-      sender: 'user',
+      text: inputText.trim(),
+      isUser: true,
       timestamp: new Date(),
-      emotion,
     };
 
     setMessages(prev => [...prev, userMessage]);
-    setInputMessage('');
+    setInputText('');
     setIsLoading(true);
 
-    // Log user message
-    await logMessage({
-      content: messageText,
-      role: 'user',
-      session_id: sessionId,
-      emotion: emotion,
-    });
-
     try {
-      const response = await fetch(`${FLASK_API_URL}/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          message: messageText, 
-          emotion: emotion,
-          session_id: sessionId 
-        }),
-      });
+      const emotion = detectEmotion(userMessage.text);
+      const responseData = await generateResponse(userMessage.text, emotion);
 
-      if (!response.ok) {
-        throw new Error('Failed to get response');
-      }
-
-      const data = await response.json();
-
-      const aiMessage: Message = {
+      const botMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: data.response,
-        sender: 'ai',
+        text: responseData.text,
+        isUser: false,
         timestamp: new Date(),
+        emotion,
+        hasComparisonTable: responseData.hasComparisonTable,
+        comparisonData: responseData.comparisonData,
       };
 
-      setMessages(prev => [...prev, aiMessage]);
+      setMessages(prev => [...prev, botMessage]);
 
-      // Log AI message
-      await logMessage({
-        content: data.response,
-        role: 'assistant',
-        session_id: sessionId,
+      // Update conversation history (keep last 6 messages)
+      setConversationHistory(prev => {
+        const newHistory = [
+          ...prev,
+          { role: 'user', content: userMessage.text },
+          { role: 'assistant', content: responseData.text }
+        ];
+        return newHistory.slice(-6);
       });
 
-      // Update user interests
-      const interests = await analyzeUserInterests(sessionId);
-      setUserInterests(interests.interests);
-
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Error generating response:', error);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: "I apologize, but I'm having trouble connecting right now. Please try again in a moment or contact our support hotline at +65 6221 1606.",
-        sender: 'ai',
+        text: "I apologize, but I'm having trouble responding right now. Please try again or contact our support team at 1688.",
+        isUser: false,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -157,369 +791,88 @@ export default function EnhancedChatSupport({ onClose }: EnhancedChatSupportProp
     }
   };
 
-  const handleQuickAction = (action: string) => {
-    sendMessage(action);
-  };
+  const quickActions = [
+    { text: "Compare All Plans", icon: CreditCard },
+    { text: "Singtel Plans", icon: MessageCircle },
+    { text: "Check Devices", icon: Smartphone },
+    { text: "Network Coverage", icon: User },
+  ];
 
-  const getEmotionColor = (emotion?: string) => {
-    switch (emotion) {
-      case 'urgent':
-        return '#E60012';
-      case 'happy':
-        return '#4CAF50';
-      case 'frustrated':
-        return '#FF6B35';
-      case 'confused':
-        return '#FFA500';
-      case 'price-sensitive':
-        return '#9C27B0';
-      default:
-        return '#666';
-    }
-  };
-
-  // Enhanced message formatting with improved table support and link handling
-  const formatMessage = (text: string) => {
-    const lines = text.split('\n');
-    const elements: JSX.Element[] = [];
-    let currentTable: string[] = [];
-    let inTable = false;
-
-    lines.forEach((line, index) => {
-      // Detect table rows
-      if (line.includes('|') && line.trim().length > 0) {
-        currentTable.push(line);
-        inTable = true;
-        return;
-      }
-
-      // If we were in a table and now we're not, render the table
-      if (inTable && currentTable.length > 0) {
-        elements.push(renderTable(currentTable, elements.length));
-        currentTable = [];
-        inTable = false;
-      }
-
-      // Handle product links with enhanced styling
-      if (line.includes('[🛒') || line.includes('[📱') || line.includes('[🌐')) {
-        const linkMatch = line.match(/\[([^\]]+)\]\(([^)]+)\)/);
-        if (linkMatch) {
-          const [, linkText, url] = linkMatch;
-          elements.push(
-            <TouchableOpacity
-              key={`${index}-${elements.length}`}
-              style={styles.productLinkButton}
-              onPress={() => handleProductLink(url)}
-            >
-              <ShoppingBag size={16} color="white" />
-              <Text style={styles.productLinkText}>{linkText}</Text>
-            </TouchableOpacity>
-          );
-          return;
-        }
-      }
-
-      // Handle numbered lists
-      if (line.match(/^\d+\.\s/)) {
-        const parts = line.split(/^(\d+\.\s)/);
-        elements.push(
-          <Text key={`${index}-${elements.length}`} style={styles.listItem}>
-            <Text style={styles.listNumber}>{parts[1]}</Text>
-            <Text style={styles.listContent}>{parts[2]}</Text>
-          </Text>
-        );
-        return;
-      }
-      
-      // Handle bold text
-      if (line.includes('**')) {
-        const parts = line.split('**');
-        elements.push(
-          <Text key={`${index}-${elements.length}`} style={styles.messageText}>
-            {parts.map((part, i) => 
-              i % 2 === 1 ? 
-                <Text key={i} style={styles.boldText}>{part}</Text> : 
-                <Text key={i}>{part}</Text>
-            )}
-          </Text>
-        );
-        return;
-      }
-      
-      // Handle headers
-      if (line.startsWith('### ')) {
-        elements.push(
-          <Text key={`${index}-${elements.length}`} style={styles.headerText}>
-            {line.replace('### ', '')}
-          </Text>
-        );
-        return;
-      }
-      
-      // Regular text
-      if (line.trim()) {
-        elements.push(
-          <Text key={`${index}-${elements.length}`} style={styles.messageText}>
-            {line}
-          </Text>
-        );
-      }
-    });
-
-    // Handle any remaining table
-    if (inTable && currentTable.length > 0) {
-      elements.push(renderTable(currentTable, elements.length));
-    }
-
-    return elements;
-  };
-
-  // Enhanced table rendering function with Singtel branding
-  const renderTable = (tableLines: string[], key: number) => {
-    if (tableLines.length < 2) return null;
-
-    // Parse table data
-    const rows = tableLines
-      .filter(line => line.trim() && !line.includes('---'))
-      .map(line => 
-        line.split('|')
-          .map(cell => cell.trim())
-          .filter(cell => cell.length > 0)
-      );
-
-    if (rows.length === 0) return null;
-
-    const headers = rows[0];
-    const dataRows = rows.slice(1);
-
-    // Mobile-friendly card layout for comparison tables
-    const renderMobileCards = () => {
-      return (
-        <View key={`mobile-table-${key}`} style={styles.mobileTableContainer}>
-          <Text style={styles.mobileTableTitle}>Plan Comparison</Text>
-          {dataRows.map((row, rowIndex) => (
-            <View key={rowIndex} style={styles.mobileComparisonCard}>
-              {headers.map((header, cellIndex) => {
-                if (cellIndex >= row.length) return null;
-                const cellValue = row[cellIndex].replace(/\*\*/g, '');
-                const isSingtel = cellValue.toLowerCase().includes('singtel');
-                const isPrice = header.toLowerCase().includes('price');
-                
-                return (
-                  <View key={cellIndex} style={styles.mobileTableRow}>
-                    <Text style={styles.mobileTableHeader}>{header}</Text>
-                    <View style={[
-                      styles.mobileTableCell,
-                      isSingtel && styles.singtelMobileCell,
-                      isPrice && styles.priceMobileCell
-                    ]}>
-                      <Text style={[
-                        styles.mobileTableCellText,
-                        isSingtel && styles.singtelMobileCellText,
-                        isPrice && styles.priceMobileCellText
-                      ]}>
-                        {cellValue}
-                      </Text>
-                      {isSingtel && (
-                        <View style={styles.recommendedBadge}>
-                          <Text style={styles.recommendedBadgeText}>RECOMMENDED</Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                );
-              })}
-              
-              {/* Add separator between comparison items */}
-              {rowIndex < dataRows.length - 1 && (
-                <View style={styles.mobileCardSeparator} />
-              )}
-            </View>
-          ))}
-          
-          {/* Summary section for mobile */}
-          <View style={styles.mobileSummarySection}>
-            <View style={styles.summaryHeader}>
-              <Text style={styles.summaryTitle}>💡 Quick Summary</Text>
-            </View>
-            <View style={styles.summaryContent}>
-              <Text style={styles.summaryText}>
-                ✅ Singtel offers the best overall value with premium features
-              </Text>
-              <Text style={styles.summaryText}>
-                📶 Superior network coverage and faster speeds
-              </Text>
-              <Text style={styles.summaryText}>
-                🎁 Exclusive entertainment and security benefits included
-              </Text>
-            </View>
-          </View>
-        </View>
-      );
-    };
-
-    // Desktop table layout (existing)
-    const renderDesktopTable = () => {
-      return (
-        <View key={`table-${key}`} style={styles.tableContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.table}>
-              {/* Enhanced Table Header with Singtel branding */}
-              <View style={styles.tableHeader}>
-                {headers.map((header, index) => (
-                  <View 
-                    key={index} 
-                    style={[
-                      styles.tableHeaderCell, 
-                      index === 0 && styles.firstHeaderCell,
-                      header.toLowerCase().includes('singtel') && styles.singtelHeaderCell,
-                      { minWidth: index === 0 ? 140 : 120 }
-                    ]}
-                  >
-                    <Text style={styles.tableHeaderText}>{header}</Text>
-                  </View>
-                ))}
-              </View>
-
-              {/* Enhanced Table Rows */}
-              {dataRows.map((row, rowIndex) => (
-                <View key={rowIndex} style={[styles.tableRow, rowIndex % 2 === 0 && styles.evenTableRow]}>
-                  {row.map((cell, cellIndex) => (
-                    <View 
-                      key={cellIndex} 
-                      style={[
-                        styles.tableCell, 
-                        cellIndex === 0 && styles.firstTableCell,
-                        cell.toLowerCase().includes('singtel') && styles.singtelTableCell,
-                        { minWidth: cellIndex === 0 ? 140 : 120 }
-                      ]}
-                    >
-                      <Text style={[
-                        styles.tableCellText, 
-                        cellIndex === 0 && styles.firstCellText,
-                        cell.toLowerCase().includes('singtel') && styles.singtelCellText
-                      ]}>
-                        {cell.replace(/\*\*/g, '')}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              ))}
-            </View>
-          </ScrollView>
-        </View>
-      );
-    };
-
-    // Return mobile layout for small screens, desktop for larger screens
-    return (
-      <>
-        {/* Show mobile layout on smaller screens */}
-        <View style={styles.mobileOnlyContainer}>
-          {renderMobileCards()}
-        </View>
-        
-        {/* Show desktop layout on larger screens */}
-        <View style={styles.desktopOnlyContainer}>
-          {renderDesktopTable()}
-        </View>
-      </>
-    );
-  };
-
-  const handleProductLink = async (url: string) => {
-    try {
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
-      } else {
-        Alert.alert('Error', 'Unable to open this link');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to open link');
-    }
+  const handleQuickAction = (actionText: string) => {
+    setInputText(actionText);
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.chatContainer}>
-        {/* Enhanced Header */}
+      <KeyboardAvoidingView 
+        style={styles.container} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <View style={styles.botIcon}>
               <Bot size={24} color="white" />
             </View>
             <View>
-              <Text style={styles.headerTitle}>Singtel AI Assistant</Text>
-              <Text style={styles.headerSubtitle}>Online • Ready to help with purchases & support</Text>
+              <Text style={styles.headerTitle}>Singtel Assistant</Text>
+              <Text style={styles.headerSubtitle}>AI-powered support</Text>
             </View>
           </View>
-          {onClose && (
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <X size={24} color="#666" />
+          </TouchableOpacity>
         </View>
 
-        {/* User Interests Display */}
-        {userInterests.length > 0 && (
-          <View style={styles.interestsContainer}>
-            <Text style={styles.interestsTitle}>Your interests: </Text>
-            {userInterests.map((interest, index) => (
-              <View key={index} style={styles.interestTag}>
-                <Text style={styles.interestText}>{interest}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Messages with Enhanced Formatting */}
+        {/* Messages */}
         <ScrollView 
-          ref={messagesEndRef}
+          ref={scrollViewRef}
           style={styles.messagesContainer}
-          contentContainerStyle={styles.messagesContent}
           showsVerticalScrollIndicator={false}
         >
           {messages.map((message) => (
-            <View key={message.id} style={[
-              styles.messageWrapper,
-              message.sender === 'user' ? styles.userMessageWrapper : styles.aiMessageWrapper
-            ]}>
-              {message.sender === 'ai' && (
-                <View style={styles.messageIcon}>
-                  <Bot size={16} color="#E60012" />
-                </View>
-              )}
-              
-              <View style={[
-                styles.messageBubble,
-                message.sender === 'user' ? styles.userMessage : styles.aiMessage
-              ]}>
-                <View style={styles.messageHeader}>
-                  {message.emotion && (
-                    <View style={[styles.emotionBadge, { backgroundColor: getEmotionColor(message.emotion) + '20' }]}>
-                      <Text style={[styles.emotionText, { color: getEmotionColor(message.emotion) }]}>
-                        {message.emotion}
-                      </Text>
-                    </View>
-                  )}
-                  <Text style={styles.timestamp}>
+            <View key={message.id}>
+              <View
+                style={[
+                  styles.messageWrapper,
+                  message.isUser ? styles.userMessageWrapper : styles.botMessageWrapper
+                ]}
+              >
+                {!message.isUser && (
+                  <View style={styles.messageIcon}>
+                    <Bot size={16} color="#E60012" />
+                  </View>
+                )}
+                <View
+                  style={[
+                    styles.messageBubble,
+                    message.isUser ? styles.userMessage : styles.botMessage
+                  ]}
+                >
+                  <Text style={[
+                    styles.messageText,
+                    message.isUser ? styles.userMessageText : styles.botMessageText
+                  ]}>
+                    {message.text}
+                  </Text>
+                  <Text style={[
+                    styles.timestamp,
+                    message.isUser ? styles.userTimestamp : styles.botTimestamp
+                  ]}>
                     {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </Text>
                 </View>
-                
-                <View style={styles.messageContent}>
-                  {message.sender === 'user' ? (
-                    <Text style={styles.userMessageText}>{message.text}</Text>
-                  ) : (
-                    formatMessage(message.text)
-                  )}
-                </View>
+                {message.isUser && (
+                  <View style={styles.messageIcon}>
+                    <User size={16} color="white" />
+                  </View>
+                )}
               </View>
-
-              {message.sender === 'user' && (
-                <View style={[styles.messageIcon, styles.userIcon]}>
-                  <User size={16} color="white" />
+              
+              {/* Render comparison table if present */}
+              {message.hasComparisonTable && message.comparisonData && (
+                <View style={styles.comparisonTableWrapper}>
+                  <ComparisonTable data={message.comparisonData} />
                 </View>
               )}
             </View>
@@ -538,73 +891,44 @@ export default function EnhancedChatSupport({ onClose }: EnhancedChatSupportProp
           )}
         </ScrollView>
 
-        {/* Enhanced Quick Actions with Shopping Section */}
+        {/* Quick Actions */}
         <View style={styles.quickActionsContainer}>
-          <Text style={styles.quickActionsTitle}>Quick Shopping</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickActionsScroll}>
-            {purchaseActions.map((action, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.purchaseActionButton}
-                onPress={() => handleQuickAction(action.action)}
-              >
-                <Text style={styles.purchaseActionText}>{action.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-          
-          <Text style={styles.quickActionsTitle}>Support Actions</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {quickActions.map((action, index) => (
               <TouchableOpacity
                 key={index}
                 style={styles.quickActionButton}
-                onPress={() => handleQuickAction(action.action)}
+                onPress={() => handleQuickAction(action.text)}
               >
-                <Text style={styles.quickActionText}>{action.label}</Text>
+                <action.icon size={16} color="#E60012" />
+                <Text style={styles.quickActionText}>{action.text}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </View>
-
-        {/* Enhanced Contact Info */}
-        <View style={styles.contactInfo}>
-          <View style={styles.contactItem}>
-            <Phone size={16} color="#E60012" />
-            <Text style={styles.contactText}>+65 6221 1606 (24/7)</Text>
-          </View>
-          <View style={styles.contactItem}>
-            <MessageCircle size={16} color="#E60012" />
-            <Text style={styles.contactText}>Live Chat Available</Text>
-          </View>
-          <View style={styles.contactItem}>
-            <Clock size={16} color="#E60012" />
-            <Text style={styles.contactText}>Store: 10AM-10PM</Text>
-          </View>
         </View>
 
         {/* Input */}
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.textInput}
-            value={inputMessage}
-            onChangeText={setInputMessage}
+            value={inputText}
+            onChangeText={setInputText}
             placeholder="Type your message..."
             placeholderTextColor="#999"
             multiline
             maxLength={500}
-            onSubmitEditing={() => sendMessage(inputMessage)}
+            onSubmitEditing={sendMessage}
             blurOnSubmit={false}
           />
           <TouchableOpacity
-            style={[styles.sendButton, (!inputMessage.trim() || isLoading) && styles.sendButtonDisabled]}
-            onPress={() => sendMessage(inputMessage)}
-            disabled={!inputMessage.trim() || isLoading}
+            style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]}
+            onPress={sendMessage}
+            disabled={!inputText.trim() || isLoading}
           >
-            <Send size={20} color={(!inputMessage.trim() || isLoading) ? '#ccc' : 'white'} />
+            <Send size={20} color={(!inputText.trim() || isLoading) ? '#ccc' : 'white'} />
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -613,9 +937,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
-  },
-  chatContainer: {
-    flex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -650,49 +971,10 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButtonText: {
-    fontSize: 18,
-    color: '#666',
-    fontWeight: 'bold',
-  },
-  interestsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: '#E8F5E8',
-    flexWrap: 'wrap',
-  },
-  interestsTitle: {
-    fontSize: 12,
-    color: '#4CAF50',
-    fontWeight: '600',
-    marginRight: 8,
-  },
-  interestTag: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 6,
-    marginBottom: 4,
-  },
-  interestText: {
-    fontSize: 10,
-    color: 'white',
-    fontWeight: '600',
+    padding: 8,
   },
   messagesContainer: {
     flex: 1,
-  },
-  messagesContent: {
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
@@ -704,7 +986,7 @@ const styles = StyleSheet.create({
   userMessageWrapper: {
     justifyContent: 'flex-end',
   },
-  aiMessageWrapper: {
+  botMessageWrapper: {
     justifyContent: 'flex-start',
   },
   messageIcon: {
@@ -716,11 +998,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 8,
   },
-  userIcon: {
-    backgroundColor: '#E60012',
-  },
   messageBubble: {
-    maxWidth: width * 0.75,
+    maxWidth: '75%',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 20,
@@ -729,7 +1008,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E60012',
     borderBottomRightRadius: 4,
   },
-  aiMessage: {
+  botMessage: {
     backgroundColor: 'white',
     borderBottomLeftRadius: 4,
     shadowColor: '#000',
@@ -738,198 +1017,31 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-  messageHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  emotionBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  emotionText: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  timestamp: {
-    fontSize: 10,
-    color: '#999',
-  },
-  messageContent: {
-    flex: 1,
-  },
-  userMessageText: {
-    fontSize: 16,
-    lineHeight: 22,
-    color: 'white',
-  },
   messageText: {
     fontSize: 16,
     lineHeight: 22,
-    color: '#333',
-    marginBottom: 2,
   },
-  headerText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#E60012',
-    marginBottom: 8,
+  userMessageText: {
+    color: 'white',
+  },
+  botMessageText: {
+    color: '#333',
+  },
+  timestamp: {
+    fontSize: 10,
     marginTop: 4,
   },
-  listItem: {
-    flexDirection: 'row',
-    marginBottom: 4,
+  userTimestamp: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    textAlign: 'right',
   },
-  listNumber: {
-    fontWeight: 'bold',
-    color: '#E60012',
-    marginRight: 4,
+  botTimestamp: {
+    color: '#999',
   },
-  listContent: {
-    flex: 1,
-    fontSize: 16,
-    lineHeight: 22,
-    color: '#333',
-  },
-  boldText: {
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  // Enhanced Product Link Button Styles
-  productLinkButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E60012',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 25,
+  comparisonTableWrapper: {
+    marginLeft: 32,
+    marginRight: 8,
     marginVertical: 8,
-    shadowColor: '#E60012',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-    alignSelf: 'flex-start',
-  },
-  productLinkText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginLeft: 8,
-    letterSpacing: 0.3,
-  },
-  // Enhanced Table Styles with Singtel Branding
-  tableContainer: {
-    marginVertical: 12,
-    backgroundColor: 'white',
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
-    overflow: 'hidden',
-    maxWidth: width - 40,
-    borderWidth: 2,
-    borderColor: '#E60012',
-  },
-  table: {
-    flexDirection: 'column',
-    minWidth: width * 0.9,
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#E60012',
-    minHeight: 50,
-  },
-  tableHeaderCell: {
-    flex: 1,
-    minWidth: 120,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderRightWidth: 1,
-    borderRightColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  firstHeaderCell: {
-    minWidth: 140,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
-    borderTopLeftRadius: 16,
-  },
-  singtelHeaderCell: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  tableHeaderText: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
-    lineHeight: 18,
-    letterSpacing: 0.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-  },
-  tableRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E9ECEF',
-    minHeight: 48,
-  },
-  evenTableRow: {
-    backgroundColor: '#F8F9FA',
-  },
-  tableCell: {
-    flex: 1,
-    minWidth: 120,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRightWidth: 1,
-    borderRightColor: '#E0E0E0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  firstTableCell: {
-    minWidth: 140,
-    backgroundColor: '#FFF8F0',
-    borderLeftWidth: 0,
-  },
-  singtelTableCell: {
-    backgroundColor: '#FFF8F0',
-    borderWidth: 1,
-    borderColor: '#FFE4CC',
-    shadowColor: '#E60012',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  tableCellText: {
-    fontSize: 14,
-    color: '#333',
-    textAlign: 'center',
-    lineHeight: 20,
-    fontWeight: '500',
-  },
-  firstCellText: {
-    fontWeight: 'bold',
-    color: '#E60012',
-    fontSize: 15,
-    letterSpacing: 0.3,
-  },
-  singtelCellText: {
-    fontWeight: 'bold',
-    color: '#E60012',
-    fontSize: 15,
-    letterSpacing: 0.2,
   },
   loadingWrapper: {
     flexDirection: 'row',
@@ -957,38 +1069,14 @@ const styles = StyleSheet.create({
   },
   quickActionsContainer: {
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingVertical: 10,
     backgroundColor: 'white',
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
   },
-  quickActionsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  quickActionsScroll: {
-    marginBottom: 15,
-  },
-  purchaseActionButton: {
-    backgroundColor: '#E60012',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginRight: 10,
-    shadowColor: '#E60012',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  purchaseActionText: {
-    fontSize: 12,
-    color: 'white',
-    fontWeight: '600',
-  },
   quickActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#f8f9fa',
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -998,27 +1086,9 @@ const styles = StyleSheet.create({
     borderColor: '#e0e0e0',
   },
   quickActionText: {
-    fontSize: 12,
-    color: '#E60012',
-    fontWeight: '600',
-  },
-  contactInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: '#f8f9fa',
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-  },
-  contactItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  contactText: {
     marginLeft: 6,
-    fontSize: 11,
-    color: '#666',
+    fontSize: 14,
+    color: '#E60012',
     fontWeight: '600',
   },
   inputContainer: {
@@ -1052,139 +1122,5 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: '#ccc',
-  },
-  
-  // Mobile-friendly table styles
-  mobileOnlyContainer: {
-    display: 'flex',
-  },
-  desktopOnlyContainer: {
-    display: 'none',
-  },
-  mobileTableContainer: {
-    marginVertical: 16,
-    backgroundColor: 'white',
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: '#E60012',
-  },
-  mobileTableTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: 'white',
-    backgroundColor: '#E60012',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    textAlign: 'center',
-    letterSpacing: 0.5,
-  },
-  mobileComparisonCard: {
-    backgroundColor: 'white',
-  },
-  mobileTableRow: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
-  mobileTableHeader: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#666',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  mobileTableCell: {
-    backgroundColor: '#F8F9FA',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    position: 'relative',
-  },
-  singtelMobileCell: {
-    backgroundColor: '#FFF8F0',
-    borderWidth: 2,
-    borderColor: '#FFE4CC',
-    shadowColor: '#E60012',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  priceMobileCell: {
-    backgroundColor: '#F0F8FF',
-    borderWidth: 1,
-    borderColor: '#E3F2FD',
-  },
-  mobileTableCellText: {
-    fontSize: 15,
-    color: '#333',
-    fontWeight: '500',
-    lineHeight: 20,
-  },
-  singtelMobileCellText: {
-    color: '#E60012',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  priceMobileCellText: {
-    color: '#1976D2',
-    fontWeight: 'bold',
-  },
-  recommendedBadge: {
-    position: 'absolute',
-    top: -8,
-    right: 8,
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    shadowColor: '#4CAF50',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  recommendedBadgeText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
-  },
-  mobileCardSeparator: {
-    height: 8,
-    backgroundColor: '#F0F0F0',
-    marginVertical: 16,
-  },
-  mobileSummarySection: {
-    backgroundColor: '#F8F9FA',
-    padding: 20,
-    borderTopWidth: 3,
-    borderTopColor: '#E60012',
-  },
-  summaryHeader: {
-    marginBottom: 12,
-  },
-  summaryTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    textAlign: 'center',
-  },
-  summaryContent: {
-    gap: 8,
-  },
-  summaryText: {
-    fontSize: 14,
-    color: '#333',
-    lineHeight: 20,
-    fontWeight: '500',
   },
 });
