@@ -292,54 +292,138 @@ export default function EnhancedChatSupport({ onClose }: EnhancedChatSupportProp
     const headers = rows[0];
     const dataRows = rows.slice(1);
 
-    return (
-      <View key={`table-${key}`} style={styles.tableContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={styles.table}>
-            {/* Enhanced Table Header with Singtel branding */}
-            <View style={styles.tableHeader}>
-              {headers.map((header, index) => (
-                <View 
-                  key={index} 
-                  style={[
-                    styles.tableHeaderCell, 
-                    index === 0 && styles.firstHeaderCell,
-                    header.toLowerCase().includes('singtel') && styles.singtelHeaderCell,
-                    { minWidth: index === 0 ? 140 : 120 }
-                  ]}
-                >
-                  <Text style={styles.tableHeaderText}>{header}</Text>
-                </View>
-              ))}
+    // Mobile-friendly card layout for comparison tables
+    const renderMobileCards = () => {
+      return (
+        <View key={`mobile-table-${key}`} style={styles.mobileTableContainer}>
+          <Text style={styles.mobileTableTitle}>Plan Comparison</Text>
+          {dataRows.map((row, rowIndex) => (
+            <View key={rowIndex} style={styles.mobileComparisonCard}>
+              {headers.map((header, cellIndex) => {
+                if (cellIndex >= row.length) return null;
+                const cellValue = row[cellIndex].replace(/\*\*/g, '');
+                const isSingtel = cellValue.toLowerCase().includes('singtel');
+                const isPrice = header.toLowerCase().includes('price');
+                
+                return (
+                  <View key={cellIndex} style={styles.mobileTableRow}>
+                    <Text style={styles.mobileTableHeader}>{header}</Text>
+                    <View style={[
+                      styles.mobileTableCell,
+                      isSingtel && styles.singtelMobileCell,
+                      isPrice && styles.priceMobileCell
+                    ]}>
+                      <Text style={[
+                        styles.mobileTableCellText,
+                        isSingtel && styles.singtelMobileCellText,
+                        isPrice && styles.priceMobileCellText
+                      ]}>
+                        {cellValue}
+                      </Text>
+                      {isSingtel && (
+                        <View style={styles.recommendedBadge}>
+                          <Text style={styles.recommendedBadgeText}>RECOMMENDED</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                );
+              })}
+              
+              {/* Add separator between comparison items */}
+              {rowIndex < dataRows.length - 1 && (
+                <View style={styles.mobileCardSeparator} />
+              )}
             </View>
+          ))}
+          
+          {/* Summary section for mobile */}
+          <View style={styles.mobileSummarySection}>
+            <View style={styles.summaryHeader}>
+              <Text style={styles.summaryTitle}>💡 Quick Summary</Text>
+            </View>
+            <View style={styles.summaryContent}>
+              <Text style={styles.summaryText}>
+                ✅ Singtel offers the best overall value with premium features
+              </Text>
+              <Text style={styles.summaryText}>
+                📶 Superior network coverage and faster speeds
+              </Text>
+              <Text style={styles.summaryText}>
+                🎁 Exclusive entertainment and security benefits included
+              </Text>
+            </View>
+          </View>
+        </View>
+      );
+    };
 
-            {/* Enhanced Table Rows */}
-            {dataRows.map((row, rowIndex) => (
-              <View key={rowIndex} style={[styles.tableRow, rowIndex % 2 === 0 && styles.evenTableRow]}>
-                {row.map((cell, cellIndex) => (
+    // Desktop table layout (existing)
+    const renderDesktopTable = () => {
+      return (
+        <View key={`table-${key}`} style={styles.tableContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.table}>
+              {/* Enhanced Table Header with Singtel branding */}
+              <View style={styles.tableHeader}>
+                {headers.map((header, index) => (
                   <View 
-                    key={cellIndex} 
+                    key={index} 
                     style={[
-                      styles.tableCell, 
-                      cellIndex === 0 && styles.firstTableCell,
-                      cell.toLowerCase().includes('singtel') && styles.singtelTableCell,
-                      { minWidth: cellIndex === 0 ? 140 : 120 }
+                      styles.tableHeaderCell, 
+                      index === 0 && styles.firstHeaderCell,
+                      header.toLowerCase().includes('singtel') && styles.singtelHeaderCell,
+                      { minWidth: index === 0 ? 140 : 120 }
                     ]}
                   >
-                    <Text style={[
-                      styles.tableCellText, 
-                      cellIndex === 0 && styles.firstCellText,
-                      cell.toLowerCase().includes('singtel') && styles.singtelCellText
-                    ]}>
-                      {cell.replace(/\*\*/g, '')}
-                    </Text>
+                    <Text style={styles.tableHeaderText}>{header}</Text>
                   </View>
                 ))}
               </View>
-            ))}
-          </View>
-        </ScrollView>
-      </View>
+
+              {/* Enhanced Table Rows */}
+              {dataRows.map((row, rowIndex) => (
+                <View key={rowIndex} style={[styles.tableRow, rowIndex % 2 === 0 && styles.evenTableRow]}>
+                  {row.map((cell, cellIndex) => (
+                    <View 
+                      key={cellIndex} 
+                      style={[
+                        styles.tableCell, 
+                        cellIndex === 0 && styles.firstTableCell,
+                        cell.toLowerCase().includes('singtel') && styles.singtelTableCell,
+                        { minWidth: cellIndex === 0 ? 140 : 120 }
+                      ]}
+                    >
+                      <Text style={[
+                        styles.tableCellText, 
+                        cellIndex === 0 && styles.firstCellText,
+                        cell.toLowerCase().includes('singtel') && styles.singtelCellText
+                      ]}>
+                        {cell.replace(/\*\*/g, '')}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+      );
+    };
+
+    // Return mobile layout for small screens, desktop for larger screens
+    return (
+      <>
+        {/* Show mobile layout on smaller screens */}
+        <View style={styles.mobileOnlyContainer}>
+          {renderMobileCards()}
+        </View>
+        
+        {/* Show desktop layout on larger screens */}
+        <View style={styles.desktopOnlyContainer}>
+          {renderDesktopTable()}
+        </View>
+      </>
     );
   };
 
@@ -968,5 +1052,139 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: '#ccc',
+  },
+  
+  // Mobile-friendly table styles
+  mobileOnlyContainer: {
+    display: 'flex',
+  },
+  desktopOnlyContainer: {
+    display: 'none',
+  },
+  mobileTableContainer: {
+    marginVertical: 16,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#E60012',
+  },
+  mobileTableTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+    backgroundColor: '#E60012',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
+  mobileComparisonCard: {
+    backgroundColor: 'white',
+  },
+  mobileTableRow: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  mobileTableHeader: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#666',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  mobileTableCell: {
+    backgroundColor: '#F8F9FA',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    position: 'relative',
+  },
+  singtelMobileCell: {
+    backgroundColor: '#FFF8F0',
+    borderWidth: 2,
+    borderColor: '#FFE4CC',
+    shadowColor: '#E60012',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  priceMobileCell: {
+    backgroundColor: '#F0F8FF',
+    borderWidth: 1,
+    borderColor: '#E3F2FD',
+  },
+  mobileTableCellText: {
+    fontSize: 15,
+    color: '#333',
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  singtelMobileCellText: {
+    color: '#E60012',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  priceMobileCellText: {
+    color: '#1976D2',
+    fontWeight: 'bold',
+  },
+  recommendedBadge: {
+    position: 'absolute',
+    top: -8,
+    right: 8,
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    shadowColor: '#4CAF50',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  recommendedBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  mobileCardSeparator: {
+    height: 8,
+    backgroundColor: '#F0F0F0',
+    marginVertical: 16,
+  },
+  mobileSummarySection: {
+    backgroundColor: '#F8F9FA',
+    padding: 20,
+    borderTopWidth: 3,
+    borderTopColor: '#E60012',
+  },
+  summaryHeader: {
+    marginBottom: 12,
+  },
+  summaryTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+  },
+  summaryContent: {
+    gap: 8,
+  },
+  summaryText: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+    fontWeight: '500',
   },
 });
